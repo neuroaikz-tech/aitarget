@@ -46,7 +46,8 @@ export function setupFacebookStrategy() {
             async (req: any, accessToken: string, _refreshToken: string, profile: any, done: any) => {
                 try {
                     const db = getDb();
-                    const userId = req.session?.userId;
+                    // userId может быть в req.user (установлен в callback middleware) или в session
+                    const userId = req.user?.id || req.session?.userId;
 
                     if (!userId) {
                         return done(new Error('User not authenticated'), false);

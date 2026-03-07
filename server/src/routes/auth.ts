@@ -92,7 +92,7 @@ router.get('/me', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Facebook OAuth — инициировать подключение аккаунта
-// Принимает токен через query param т.к. OAuth redirect не несёт Authorization header
+// userId передаётся через OAuth state parameter (не сессия) — работает на stateless серверах
 router.get('/facebook', (req: any, res: Response, next: any) => {
     const token = req.query.token as string;
 
@@ -107,25 +107,32 @@ router.get('/facebook', (req: any, res: Response, next: any) => {
         if (!user) {
             return res.redirect(`${process.env.CLIENT_URL}/settings?fb_error=true`);
         }
-        req.user = user;
-        req.session.userId = user.id;
+        // Передаём userId как state параметр OAuth — Facebook вернёт его в callback
+        req._fbUserId = user.id;
         next();
     } catch {
         return res.redirect(`${process.env.CLIENT_URL}/settings?fb_error=true`);
     }
-}, passport.authenticate('facebook', {
-    scope: ['email', 'ads_management', 'ads_read', 'business_management', 'public_profile'],
-}));
+}, (req: any, res: Response, next: any) => {
+    const { authenticate } = require('passport');
+    authenticate('facebook', {
+        scope: ['email', 'ads_management', 'ads_read', 'business_management', 'public_profile'],
+        state: req._fbUserId, // userId передаётся через state
+    })(req, res, next);
+});
 
-// Facebook OAuth callback
+// Facebook OAuth callback — читаем userId из state параметра
 router.get(
     '/facebook/callback',
     (req: any, res: Response, next: any) => {
-        // Восстанавливаем user из сессии
-        if (req.session.userId) {
+        // Читаем userId из state параметра (передан при инициации OAuth)
+        const userId = req.query.state as string;
+        if (userId) {
             const db = getDb();
-            const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+            const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
             req.user = user;
+            // Кладём в сессию для passport
+            if (req.session) req.session.userId = userId;
         }
         next();
     },
