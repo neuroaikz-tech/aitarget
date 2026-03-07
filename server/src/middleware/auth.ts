@@ -6,11 +6,12 @@ export interface AuthRequest extends Request {
     user?: any;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = (req: AuthRequest, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Не авторизован' });
+        res.status(401).json({ error: 'Не авторизован' });
+        return;
     }
 
     const token = authHeader.split(' ')[1];
@@ -21,12 +22,13 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
         const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id) as any;
 
         if (!user) {
-            return res.status(401).json({ error: 'Пользователь не найден' });
+            res.status(401).json({ error: 'Пользователь не найден' });
+            return;
         }
 
         req.user = user;
         next();
     } catch (err) {
-        return res.status(401).json({ error: 'Недействительный токен' });
+        res.status(401).json({ error: 'Недействительный токен' });
     }
 };
