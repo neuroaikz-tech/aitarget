@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/authStore';
 import { adsApi, authApi } from '../api';
 import {
     BarChart2,
-    DollarSign,
     Megaphone,
     TrendingUp,
     ExternalLink,
@@ -101,7 +100,7 @@ export default function DashboardPage() {
             ARCHIVED: 'Архив',
         };
         return (
-            <span className={`badge badge-${map[status] || 'archived'}`}>
+            <span className={`badge badge - ${map[status] || 'archived'} `}>
                 {labels[status] || status}
             </span>
         );
@@ -250,7 +249,7 @@ export default function DashboardPage() {
                                             <td>{getStatusBadge(campaign.status)}</td>
                                             <td style={{ color: 'var(--text-secondary)' }}>
                                                 {campaign.daily_budget
-                                                    ? `$${(parseInt(campaign.daily_budget) / 100).toFixed(2)}`
+                                                    ? `$${(parseInt(campaign.daily_budget) / 100).toFixed(2)} `
                                                     : '—'}
                                             </td>
                                         </tr>
@@ -283,7 +282,7 @@ export default function DashboardPage() {
                                             background: selectedAdAccount === acc.id.replace('act_', '')
                                                 ? 'rgba(79,110,247,0.1)'
                                                 : 'var(--bg-secondary)',
-                                            border: `1px solid ${selectedAdAccount === acc.id.replace('act_', '') ? 'rgba(79,110,247,0.3)' : 'var(--border)'}`,
+                                            border: `1px solid ${selectedAdAccount === acc.id.replace('act_', '') ? 'rgba(79,110,247,0.3)' : 'var(--border)'} `,
                                             borderRadius: 'var(--radius-sm)',
                                             cursor: 'pointer',
                                             transition: 'all var(--transition)',
