@@ -1,0 +1,131 @@
+import axios from 'axios';
+
+const FB_API_BASE = 'https://graph.facebook.com/v19.0';
+
+export class FacebookAdsService {
+    private accessToken: string;
+
+    constructor(accessToken: string) {
+        this.accessToken = accessToken;
+    }
+
+    private async get(endpoint: string, params: Record<string, any> = {}) {
+        const response = await axios.get(`${FB_API_BASE}${endpoint}`, {
+            params: {
+                access_token: this.accessToken,
+                ...params,
+            },
+        });
+        return response.data;
+    }
+
+    private async post(endpoint: string, data: Record<string, any> = {}) {
+        const response = await axios.post(`${FB_API_BASE}${endpoint}`, null, {
+            params: {
+                access_token: this.accessToken,
+                ...data,
+            },
+        });
+        return response.data;
+    }
+
+    private async delete(endpoint: string) {
+        const response = await axios.delete(`${FB_API_BASE}${endpoint}`, {
+            params: { access_token: this.accessToken },
+        });
+        return response.data;
+    }
+
+    // Получить рекламные аккаунты
+    async getAdAccounts() {
+        const data = await this.get('/me/adaccounts', {
+            fields: 'id,name,currency,timezone_name,account_status,balance,spend_cap',
+        });
+        return data.data || [];
+    }
+
+    // Получить кампании аккаунта
+    async getCampaigns(adAccountId: string) {
+        const data = await this.get(`/act_${adAccountId}/campaigns`, {
+            fields: 'id,name,status,objective,created_time,updated_time,start_time,stop_time,budget_remaining,daily_budget,lifetime_budget,buying_type,special_ad_categories',
+            limit: 100,
+        });
+        return data.data || [];
+    }
+
+    // Создать кампанию
+    async createCampaign(adAccountId: string, params: {
+        name: string;
+        objective: string;
+        status: string;
+        special_ad_categories?: string[];
+        daily_budget?: number;
+        lifetime_budget?: number;
+        start_time?: string;
+        stop_time?: string;
+    }) {
+        const data = await this.post(`/act_${adAccountId}/campaigns`, {
+            name: params.name,
+            objective: params.objective,
+            status: params.status,
+            special_ad_categories: JSON.stringify(params.special_ad_categories || []),
+            ...(params.daily_budget && { daily_budget: params.daily_budget }),
+            ...(params.lifetime_budget && { lifetime_budget: params.lifetime_budget }),
+            ...(params.start_time && { start_time: params.start_time }),
+            ...(params.stop_time && { stop_time: params.stop_time }),
+        });
+        return data;
+    }
+
+    // Обновить кампанию
+    async updateCampaign(campaignId: string, params: {
+        name?: string;
+        status?: string;
+        daily_budget?: number;
+        lifetime_budget?: number;
+    }) {
+        const response = await axios.post(`${FB_API_BASE}/${campaignId}`, null, {
+            params: {
+                access_token: this.accessToken,
+                ...params,
+            },
+        });
+        return response.data;
+    }
+
+    // Удалить кампанию
+    async deleteCampaign(campaignId: string) {
+        return await this.delete(`/${campaignId}`);
+    }
+
+    // Получить статистику кампании
+    async getCampaignInsights(campaignId: string, dateRange?: { since: string; until: string }) {
+        const params: any = {
+            fields: 'impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,cpp,actions',
+            level: 'campaign',
+        };
+        if (dateRange) {
+            params.time_range = JSON.stringify(dateRange);
+        }
+        const data = await this.get(`/${campaignId}/insights`, params);
+        return data.data?.[0] || null;
+    }
+
+    // Получить группы объявлений
+    async getAdSets(campaignId: string) {
+        const data = await this.get(`/${campaignId}/adsets`, {
+            fields: 'id,name,status,daily_budget,lifetime_budget,targeting,start_time,end_time,optimization_goal,billing_event',
+            limit: 100,
+        });
+        return data.data || [];
+    }
+
+    // Получить объявления
+    async getAds(adSetId: string) {
+        const data = await this.get(`/${adSetId}/ads`, {
+            fields: 'id,name,status,creative,created_time,updated_time',
+            limit: 100,
+        });
+        return data.data || [];
+    }
+}
