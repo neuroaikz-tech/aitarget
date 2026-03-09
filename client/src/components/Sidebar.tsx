@@ -6,13 +6,17 @@ import {
     Settings,
     LogOut,
     ChevronRight,
+    Brain,
 } from 'lucide-react';
 
 const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Дашборд' },
     { to: '/campaigns', icon: Megaphone, label: 'Кампании' },
+    { to: '/ai', icon: Brain, label: 'ИИ Аналитик', badge: 'NEW' },
     { to: '/settings', icon: Settings, label: 'Настройки' },
 ];
+
+type NavItem = { to: string; icon: any; label: string; badge?: string };
 
 export default function Sidebar() {
     const location = useLocation();
@@ -33,15 +37,22 @@ export default function Sidebar() {
 
             <nav className="sidebar-nav">
                 <span className="nav-section-title">Навигация</span>
-                {navItems.map(({ to, icon: Icon, label }) => (
+                {(navItems as NavItem[]).map(({ to, icon: Icon, label, badge }) => (
                     <Link
                         key={to}
                         to={to}
                         className={`nav-item ${location.pathname.startsWith(to) ? 'active' : ''}`}
-                        id={`nav-${label.toLowerCase()}`}
+                        id={`nav-${label.toLowerCase().replace(' ', '-')}`}
                     >
                         <Icon size={18} />
                         <span style={{ flex: 1 }}>{label}</span>
+                        {badge && !location.pathname.startsWith(to) && (
+                            <span style={{
+                                fontSize: '9px', padding: '2px 6px', borderRadius: '20px',
+                                background: 'linear-gradient(135deg, #7c3aed, #4f6ef7)',
+                                color: 'white', fontWeight: '700', letterSpacing: '0.5px',
+                            }}>{badge}</span>
+                        )}
                         {location.pathname.startsWith(to) && (
                             <ChevronRight size={14} style={{ opacity: 0.5 }} />
                         )}

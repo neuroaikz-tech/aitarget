@@ -7,21 +7,21 @@ const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'data', 'aitarge
 let db: Database.Database;
 
 export function getDb(): Database.Database {
-    if (!db) {
-        const dir = path.dirname(DB_PATH);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        db = new Database(DB_PATH);
-        db.pragma('journal_mode = WAL');
-        db.pragma('foreign_keys = ON');
-        initializeSchema();
+  if (!db) {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
-    return db;
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    initializeSchema();
+  }
+  return db;
 }
 
 function initializeSchema() {
-    db.exec(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE,
@@ -55,6 +55,35 @@ function initializeSchema() {
       currency TEXT,
       timezone TEXT,
       status TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_settings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT UNIQUE NOT NULL,
+      telegram_bot_token TEXT,
+      telegram_chat_id TEXT,
+      analysis_interval_hours INTEGER DEFAULT 6,
+      auto_actions_enabled INTEGER DEFAULT 0,
+      max_budget_increase_pct INTEGER DEFAULT 20,
+      alert_cpa_threshold REAL,
+      alert_spend_threshold REAL,
+      gemini_api_key TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_analyses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      ad_account_id TEXT,
+      ad_account_name TEXT,
+      summary TEXT,
+      insights TEXT,
+      recommendations TEXT,
+      total_spend REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );

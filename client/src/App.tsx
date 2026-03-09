@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CampaignsPage from './pages/CampaignsPage';
 import SettingsPage from './pages/SettingsPage';
+import AIAnalystPage from './pages/AIAnalystPage';
 
 export default function App() {
   const { fetchMe, token } = useAuthStore();
@@ -51,6 +52,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/ai" element={<AIAnalystPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Route>

@@ -7,7 +7,9 @@ import passport from './config/passport';
 import { setupFacebookStrategy } from './config/passport';
 import authRoutes from './routes/auth';
 import campaignRoutes from './routes/campaigns';
+import aiRoutes from './routes/ai';
 import { getDb } from './db/database';
+import { startScheduler } from './services/scheduler';
 
 dotenv.config();
 
@@ -48,6 +50,12 @@ app.use(passport.session());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/api/ads', campaignRoutes);
+app.use('/api/ai', aiRoutes);
+
+// Запускаем планировщик ИИ-анализа
+if (process.env.NODE_ENV !== 'test') {
+    startScheduler();
+}
 
 // Health check
 app.get('/health', (_, res) => {
