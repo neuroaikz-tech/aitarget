@@ -91,8 +91,7 @@ router.get('/me', authenticate, (req: AuthRequest, res: Response) => {
     res.json({ user: safeUser });
 });
 
-// Facebook OAuth — инициировать подключение аккаунта
-// userId передаётся через OAuth state parameter (не сессия) — работает на stateless серверах
+// Facebook OAuth — проверяем JWT, передаём userId через state параметр
 router.get('/facebook', (req: any, res: Response, next: any) => {
     const token = req.query.token as string;
 
@@ -107,18 +106,15 @@ router.get('/facebook', (req: any, res: Response, next: any) => {
         if (!user) {
             return res.redirect(`${process.env.CLIENT_URL}/settings?fb_error=true`);
         }
-        // Передаём userId как state параметр OAuth — Facebook вернёт его в callback
-        req._fbUserId = user.id;
-        next();
+
+        // Вызываем passport.authenticate напрямую с state=userId
+        passport.authenticate('facebook', {
+            scope: ['email', 'ads_management', 'ads_read', 'business_management', 'public_profile'],
+            state: user.id,
+        } as any)(req, res, next);
     } catch {
         return res.redirect(`${process.env.CLIENT_URL}/settings?fb_error=true`);
     }
-}, (req: any, res: Response, next: any) => {
-    const { authenticate } = require('passport');
-    authenticate('facebook', {
-        scope: ['email', 'ads_management', 'ads_read', 'business_management', 'public_profile'],
-        state: req._fbUserId, // userId передаётся через state
-    })(req, res, next);
 });
 
 // Facebook OAuth callback — читаем userId из state параметра
@@ -130,9 +126,11 @@ router.get(
         if (userId) {
             const db = getDb();
             const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-            req.user = user;
-            // Кладём в сессию для passport
-            if (req.session) req.session.userId = userId;
+            if (user) {
+                req.user = user;
+                // Кладём в сессию для passport
+                if (req.session) req.session.userId = userId;
+            }
         }
         next();
     },
