@@ -14,7 +14,7 @@ import { startScheduler } from './services/scheduler';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Инициализируем БД и Facebook OAuth стратегию
 getDb();
@@ -67,8 +67,8 @@ app.use((_, res) => {
     res.status(404).json({ error: 'Маршрут не найден' });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Сервер запущен на http://0.0.0.0:${PORT}`);
     console.log(`📦 Среда: ${process.env.NODE_ENV || 'development'}`);
 });
 
