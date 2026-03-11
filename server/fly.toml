@@ -1,26 +1,23 @@
-app = "aitarget-api"
-primary_region = "fra"  # Frankfurt — ближайший к Казахстану
+# fly.toml app configuration file generated for aitarget on 2026-03-11T13:38:56Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'aitarget'
+primary_region = 'ams'
 
 [build]
-  dockerfile = "Dockerfile"
-
-[env]
-  NODE_ENV = "production"
-  PORT = "3001"
 
 [http_service]
-  internal_port = 3001
+  internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
+  processes = ['app']
 
 [[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
+  memory = '1gb'
+  cpu_kind = 'shared'
   cpus = 1
-
-# Persistent Volume для SQLite базы данных
-[[mounts]]
-  source = "aitarget_data"
-  destination = "/data"
+  memory_mb = 256
