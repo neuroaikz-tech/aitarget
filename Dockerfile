@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM --platform=linux/amd64 node:20-alpine
 
 # Зависимости для компиляции better-sqlite3
 RUN apk add --no-cache python3 make g++

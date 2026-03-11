@@ -16,8 +16,23 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || (process.env.NODE_ENV === 'production' ? 8080 : 3001);
 
+// Глобальные обработчики ошибок — логируем перед крашем
+process.on('uncaughtException', (err) => {
+    console.error('💥 uncaughtException:', err);
+    process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('💥 unhandledRejection:', reason);
+});
+
 // Инициализируем БД и Facebook OAuth стратегию
-getDb();
+try {
+    getDb();
+    console.log('✅ База данных инициализирована');
+} catch (err) {
+    console.error('❌ Ошибка инициализации БД:', err);
+    process.exit(1);
+}
 setupFacebookStrategy();
 
 // Middlewares
