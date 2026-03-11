@@ -114,27 +114,26 @@ router.post('/analyze', authenticate, async (req: AuthRequest, res: Response) =>
         }
 
         const service = new FacebookAdsService(fbAccount.access_token);
-        const adAccountsRes = await service.getAdAccounts();
-        const adAccounts = adAccountsRes?.data || [];
+        const adAccounts = await service.getAdAccounts();  // уже массив
 
-        if (adAccounts.length === 0) {
+        if (!adAccounts || adAccounts.length === 0) {
             return res.status(400).json({ error: 'Нет рекламных аккаунтов' });
         }
 
         const adAccount = adAccounts[0];
         const adAccountId = adAccount.id.replace('act_', '');
-        const campaigns = (await service.getCampaigns(adAccountId))?.data || [];
+        const campaigns = await service.getCampaigns(adAccountId);  // уже массив
 
         // Инсайты за последние 24 часа
         const insights: any[] = [];
         for (const campaign of campaigns.slice(0, 10)) {
             try {
-                const insightRes = await service.getCampaignInsights(campaign.id, {
+                const insightData = await service.getCampaignInsights(campaign.id, {
                     since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                     until: new Date().toISOString().split('T')[0],
                 });
-                if (insightRes?.data?.[0]) {
-                    insights.push({ ...insightRes.data[0], campaign_id: campaign.id });
+                if (insightData) {
+                    insights.push({ ...insightData, campaign_id: campaign.id });
                 }
             } catch { }
         }
