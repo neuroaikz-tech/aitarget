@@ -14,7 +14,7 @@ import { startScheduler } from './services/scheduler';
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || (process.env.NODE_ENV === 'production' ? 8080 : 3001);
 
 // Инициализируем БД и Facebook OAuth стратегию
 getDb();
