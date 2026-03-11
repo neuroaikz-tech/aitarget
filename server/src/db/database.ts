@@ -39,6 +39,7 @@ function initializeSchema() {
       name TEXT NOT NULL,
       avatar TEXT,
       provider TEXT DEFAULT 'local',
+      telegram_id TEXT UNIQUE,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -98,6 +99,11 @@ function initializeSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+
+  // Миграции для существующих БД
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN telegram_id TEXT UNIQUE`);
+  } catch { /* колонка уже существует */ }
 }
 
 export default getDb;

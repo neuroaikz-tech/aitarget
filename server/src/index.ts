@@ -10,6 +10,7 @@ import campaignRoutes from './routes/campaigns';
 import aiRoutes from './routes/ai';
 import { getDb } from './db/database';
 import { startScheduler } from './services/scheduler';
+import { startBot } from './services/telegramBot';
 
 dotenv.config();
 
@@ -67,9 +68,14 @@ app.use('/auth', authRoutes);
 app.use('/api/ads', campaignRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Запускаем планировщик ИИ-анализа
+// Запускаем планировщик ИИ-анализа и Telegram-бота
 if (process.env.NODE_ENV !== 'test') {
     startScheduler();
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+        startBot(process.env.TELEGRAM_BOT_TOKEN);
+    } else {
+        console.log('⚠️ TELEGRAM_BOT_TOKEN не задан, бот не запущен');
+    }
 }
 
 // Health check

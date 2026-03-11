@@ -6,7 +6,76 @@ import { getDb } from '../db/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import passport from '../config/passport';
 
+import crypto from 'crypto';
+
 const router = Router();
+
+// Авторизация через Telegram Mini App (InitData)
+router.post('/telegram/auth', async (req: Request, res: Response) => {
+    try {
+        const { initData } = req.body;
+        if (!initData) return res.status(400).json({ error: 'Нет initData' });
+
+        // Парсим initData
+        const urlParams = new URLSearchParams(initData);
+        const hash = urlParams.get('hash');
+        urlParams.delete('hash');
+
+        // Сортируем параметры по алфавиту
+        const dataCheckString = Array.from(urlParams.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n');
+
+        // Создаём секретный ключ из токена бота
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (!botToken) return res.status(500).json({ error: 'Бот не настроен' });
+
+        const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+        const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+        if (calculatedHash !== hash) {
+            return res.status(403).json({ error: 'Неверная подпись Telegram' });
+        }
+
+        // Данные пользователя Telegram
+        const tgUserStr = urlParams.get('user');
+        if (!tgUserStr) return res.status(400).json({ error: 'Нет данных пользователя' });
+        const tgUser = JSON.parse(tgUserStr);
+
+        const db = getDb();
+        const existingUser = db.prepare('SELECT id FROM users WHERE telegram_id = ?').get(String(tgUser.id)) as any;
+
+        let userId = existingUser?.id;
+
+        if (!userId) {
+            // Создаём нового пользователя, если он зашёл впервые через TG
+            userId = uuidv4();
+            db.prepare(
+                'INSERT INTO users (id, name, telegram_id, provider) VALUES (?, ?, ?, ?)'
+            ).run(userId, tgUser.first_name || 'Telegram User', String(tgUser.id), 'telegram');
+        }
+
+        // Выдаём обычный JWT токен как при обычной авторизации
+        const token = jwt.sign({ id: userId }, process.env.JWT_SECRET!, {
+            expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any,
+        });
+
+        res.json({
+            message: 'Успешно авторизовано через Telegram',
+            token,
+            user: {
+                id: userId,
+                name: tgUser.first_name,
+                telegram_id: String(tgUser.id)
+            }
+        });
+
+    } catch (err: any) {
+        console.error('Ошибка Telegram Auth:', err);
+        res.status(500).json({ error: 'Ошибка авторизации' });
+    }
+});
 
 // Регистрация
 router.post('/register', async (req: Request, res: Response) => {
