@@ -2,12 +2,17 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
-// На Fly.io /data — persistent volume (сохраняется между деплоями)
-// Локально — ./data директория
-const DB_PATH = process.env.DB_PATH ||
-  (process.env.FLY_APP_NAME
-    ? '/data/aitarget.db'          // Fly.io: persistent volume
-    : path.join(process.cwd(), 'data', 'aitarget.db'));  // Локально/Render
+// Пути к БД по платформам:
+// - Fly.io: /data (persistent volume)
+// - Railway: /tmp (эфемерно, но работает)
+// - Локально: ./data
+function getDbPath(): string {
+  if (process.env.DB_PATH) return process.env.DB_PATH;
+  if (process.env.FLY_APP_NAME) return '/data/aitarget.db';
+  if (process.env.RAILWAY_ENVIRONMENT) return '/tmp/aitarget.db';
+  return path.join(process.cwd(), 'data', 'aitarget.db');
+}
+const DB_PATH = getDbPath();
 
 let db: Database.Database;
 
