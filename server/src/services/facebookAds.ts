@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 
 const FB_API_BASE = 'https://graph.facebook.com/v19.0';
 
@@ -53,6 +54,15 @@ export class FacebookAdsService {
         return data.data || [];
     }
 
+    // Получить страницы
+    async getPages() {
+        const data = await this.get('/me/accounts', {
+            fields: 'id,name,access_token',
+            limit: 10,
+        });
+        return data.data || [];
+    }
+
     // Создать кампанию
     async createCampaign(adAccountId: string, params: {
         name: string;
@@ -69,11 +79,55 @@ export class FacebookAdsService {
             objective: params.objective,
             status: params.status,
             special_ad_categories: JSON.stringify(params.special_ad_categories || []),
+            buying_type: 'AUCTION', // REQUIRED
             ...(params.daily_budget && { daily_budget: params.daily_budget }),
             ...(params.lifetime_budget && { lifetime_budget: params.lifetime_budget }),
             ...(params.start_time && { start_time: params.start_time }),
             ...(params.stop_time && { stop_time: params.stop_time }),
         });
+        return data;
+    }
+
+    // Создать группу объявлений (Ad Set)
+    async createAdSet(adAccountId: string, params: any) {
+        const data = await this.post(`/act_${adAccountId}/adsets`, params);
+        return data;
+    }
+
+    // Загрузить изображение (поддержка Base64)
+    async uploadImage(adAccountId: string, base64Data: string) {
+        // Убираем префикс data:image/jpeg;base64,
+        const b64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(b64, 'base64');
+        
+        const form = new FormData();
+        form.append('access_token', this.accessToken);
+        form.append('filename', {
+            value: buffer,
+            options: {
+                filename: 'creative.jpg',
+                contentType: 'image/jpeg',
+            }
+        } as any);
+
+        const response = await axios.post(`${FB_API_BASE}/act_${adAccountId}/adimages`, form, {
+            headers: {
+                ...form.getHeaders()
+            }
+        });
+        
+        return response.data; // { images: { 'creative.jpg': { hash: '...', url: '...' } } }
+    }
+
+    // Создать креатив (Ad Creative)
+    async createAdCreative(adAccountId: string, params: any) {
+        const data = await this.post(`/act_${adAccountId}/adcreatives`, params);
+        return data;
+    }
+
+    // Создать само объявление (Ad)
+    async createAd(adAccountId: string, params: any) {
+        const data = await this.post(`/act_${adAccountId}/ads`, params);
         return data;
     }
 

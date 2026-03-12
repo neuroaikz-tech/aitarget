@@ -92,9 +92,14 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                 toast.error('Файл слишком большой. Максимум 50MB.');
                 return;
             }
-            const url = URL.createObjectURL(file);
-            setSelectedImage(url);
-            toast.success('Файл успешно загружен!');
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                    setSelectedImage(reader.result);
+                    toast.success('Файл успешно загружен!');
+                }
+            };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -112,7 +117,11 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                 status: 'PAUSED', // Start paused by default
                 daily_budget: budget ? parseInt(budget) * 100 : undefined,
                 special_ad_categories: [],
-                // В реальном приложении здесь будут переданы targeting, placements, creative data.
+                destination,
+                targeting: { ageMin, ageMax, gender },
+                placements,
+                image: selectedImage,
+                adText,
             });
             toast.success('Кампания, группа объявлений и креатив успешно созданы!');
             onSuccess();

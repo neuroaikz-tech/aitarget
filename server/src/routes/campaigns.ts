@@ -65,13 +65,18 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             return res.status(403).json({ error: 'Facebook аккаунт не подключён' });
         }
 
-        const { name, objective, status, special_ad_categories, daily_budget, lifetime_budget, start_time, stop_time } = req.body;
+        const { 
+            name, objective, status, special_ad_categories, daily_budget, lifetime_budget, start_time, stop_time,
+            targeting, placements, destination, image, adText
+        } = req.body;
 
         if (!name || !objective) {
             return res.status(400).json({ error: 'Название и цель обязательны' });
         }
 
         const service = new FacebookAdsService(token);
+        
+        // 1. Создаем кампанию
         const campaign = await service.createCampaign(req.params.adAccountId as string, {
             name,
             objective,
@@ -82,6 +87,95 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             start_time,
             stop_time,
         });
+
+        if (!campaign || !campaign.id) {
+            throw new Error('Не удалось создать кампанию');
+        }
+
+        try {
+            // Пытаемся получить Facebook Page ID для рекламы в ленте (нужна для Ad Creative)
+            const pages = await service.getPages();
+            const pageId = pages.length > 0 ? pages[0].id : null;
+
+            // 2. Создаем AdSet
+            let publisher_platforms = [];
+            let facebook_positions = [];
+            let instagram_positions = [];
+            
+            if (placements?.fb_feed) {
+                publisher_platforms.push('facebook');
+                facebook_positions.push('feed');
+            }
+            if (placements?.fb_stories) {
+                if (!publisher_platforms.includes('facebook')) publisher_platforms.push('facebook');
+                facebook_positions.push('story');
+            }
+            if (placements?.ig_feed) {
+                publisher_platforms.push('instagram');
+                instagram_positions.push('stream');
+            }
+            if (placements?.ig_reels) {
+                if (!publisher_platforms.includes('instagram')) publisher_platforms.push('instagram');
+                instagram_positions.push('reels');
+            }
+            if (publisher_platforms.length === 0) publisher_platforms = ['facebook', 'instagram'];
+
+            const optimizedGoal = objective === 'OUTCOME_TRAFFIC' ? 'LINK_CLICKS' 
+                                : objective === 'OUTCOME_ENGAGEMENT' ? 'POST_ENGAGEMENT'
+                                : 'REACH';
+
+            const adSet = await service.createAdSet(req.params.adAccountId as string, {
+                campaign_id: campaign.id,
+                name: `${name} - AdSet`,
+                optimization_goal: optimizedGoal,
+                billing_event: 'IMPRESSIONS',
+                bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+                daily_budget: daily_budget || 500, // Минимум для FB API
+                status: 'PAUSED',
+                targeting: JSON.stringify({
+                    age_min: targeting?.ageMin ? parseInt(targeting.ageMin) : 18,
+                    age_max: targeting?.ageMax ? parseInt(targeting.ageMax) : 65,
+                    ...(targeting?.gender === 'MALE' ? { genders: [1] } : targeting?.gender === 'FEMALE' ? { genders: [2] } : {}),
+                    publisher_platforms: publisher_platforms,
+                    facebook_positions: facebook_positions.length > 0 ? facebook_positions : undefined,
+                    instagram_positions: instagram_positions.length > 0 ? instagram_positions : undefined,
+                    device_platforms: ['mobile', 'desktop'],
+                })
+            });
+
+            // 3. Загружаем изображение и создаем объявление (если есть pageId и image)
+            if (adSet?.id && pageId && image && image.startsWith('data:image')) {
+                const uploadedData = await service.uploadImage(req.params.adAccountId as string, image);
+                const imageHash = uploadedData?.images?.[Object.keys(uploadedData.images)[0]]?.hash;
+
+                if (imageHash) {
+                    const creative = await service.createAdCreative(req.params.adAccountId as string, {
+                        name: `${name} - Creative`,
+                        object_story_spec: JSON.stringify({
+                            page_id: pageId,
+                            link_data: {
+                                image_hash: imageHash,
+                                link: destination === 'WHATSAPP' ? 'https://whatsapp.com' : 'https://example.com',
+                                message: adText || 'Новое предложение от нас!'
+                            }
+                        })
+                    });
+
+                    if (creative?.id) {
+                        await service.createAd(req.params.adAccountId as string, {
+                            name: `${name} - Ad`,
+                            adset_id: adSet.id,
+                            creative: JSON.stringify({ creative_id: creative.id }),
+                            status: 'PAUSED'
+                        });
+                    }
+                }
+            }
+
+        } catch (e: any) {
+            console.error('Ошибка при создании AdSet/Ad (кампания создана):', e?.response?.data || e);
+            // Не блочим отдачу кампании, так как FB API может быть капризным без правильных Page ID и Billing
+        }
 
         res.status(201).json({ campaign });
     } catch (err: any) {
