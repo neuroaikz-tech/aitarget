@@ -45,6 +45,10 @@ export const authApi = {
 export const adsApi = {
     getAdAccounts: () => api.get('/api/ads/accounts'),
 
+    getPages: () => api.get('/api/ads/pages'),
+
+    getObjectives: () => api.get('/api/ads/objectives'),
+
     getCampaigns: (adAccountId: string) =>
         api.get(`/api/ads/accounts/${adAccountId}/campaigns`),
 
