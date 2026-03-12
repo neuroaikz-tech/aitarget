@@ -66,7 +66,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
         }
 
         const { 
-            name, objective, status, special_ad_categories, daily_budget, lifetime_budget, start_time, stop_time,
+            name, objective, status, special_ad_categories, daily_budget, bid_amount, lifetime_budget, start_time, stop_time,
             targeting, placements, destination, image, adText
         } = req.body;
 
@@ -135,6 +135,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 name: `${name} - AdSet`,
                 optimization_goal: optimizedGoal,
                 billing_event: 'IMPRESSIONS',
+                bid_strategy: bid_amount ? 'COST_CAP' : 'LOWEST_COST_WITHOUT_CAP',
                 daily_budget: daily_budget || 500, // Минимум для FB API ($5)
                 status: 'PAUSED',
                 targeting: JSON.stringify({
@@ -152,6 +153,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             };
 
             if (promotedObject) adSetParams.promoted_object = promotedObject;
+            if (bid_amount) adSetParams.bid_amount = bid_amount;
 
             const adSet = await service.createAdSet(req.params.adAccountId as string, adSetParams);
 

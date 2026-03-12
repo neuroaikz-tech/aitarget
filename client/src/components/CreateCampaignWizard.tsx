@@ -29,6 +29,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     const [objective, setObjective] = useState('OUTCOME_TRAFFIC');
     const [destination, setDestination] = useState('WEBSITE'); // Новое: место назначения
     const [budget, setBudget] = useState('');
+    const [bidAmount, setBidAmount] = useState(''); // Новое: предельная ставка
 
     // Step 2: Targeting & Placements
     const [ageMin, setAgeMin] = useState('18');
@@ -117,6 +118,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                 objective: objective,
                 status: 'PAUSED', // Start paused by default
                 daily_budget: budget ? parseInt(budget) * 100 : undefined,
+                bid_amount: bidAmount ? parseFloat(bidAmount) * 100 : undefined,
                 special_ad_categories: [],
                 destination,
                 targeting: { ageMin, ageMax, gender, location },
@@ -229,6 +231,22 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 />
                                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
                                     Бюджет можно изменить в любое время.
+                                </span>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Предельная ставка / Цена за результат ($) (Опционально)</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="Оставьте пустым для автоставок"
+                                    value={bidAmount}
+                                    onChange={(e) => setBidAmount(e.target.value)}
+                                    min="0.01"
+                                    step="0.01"
+                                />
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                    Укажите, если хотите ограничить максимальную стоимость за 1000 показов или клик по стратегии Cost Cap.
                                 </span>
                             </div>
                         </div>
@@ -466,7 +484,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 </h4>
                                 <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     <li><strong>Название:</strong> {name}</li>
-                                    <li><strong>Бюджет:</strong> ${budget || '0'} / день</li>
+                                    <li><strong>Бюджет:</strong> ${budget || '0'} / день {bidAmount ? `(Ставка до $${bidAmount})` : '(Автоставка)'}</li>
                                     <li><strong>Аудитория:</strong> {gender === 'ALL' ? 'Все' : gender === 'MALE' ? 'Мужчины' : 'Женщины'}, {ageMin}-{ageMax} лет, {location}</li>
                                     <li><strong>Куда ведем:</strong> {destination === 'WEBSITE' ? 'Сайт' : destination === 'WHATSAPP' ? 'WhatsApp' : destination === 'INSTAGRAM_DIRECT' ? 'Instagram Direct' : 'Куда-то ещё'}</li>
                                     <li><strong>Плейсменты:</strong> {Object.values(placements).filter(Boolean).length} площадок</li>
