@@ -19,17 +19,30 @@ export default function App() {
     // 1. Проверяем Telegram WebApp
     const tgInitData = (window as any).Telegram?.WebApp?.initData;
 
-    if (tgInitData && !token) {
-      // Идёт вход через Telegram
-      axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/telegram/auth`, {
-        initData: tgInitData
-      }).then(res => {
-        useAuthStore.getState().setAuth(res.data.user, res.data.token);
-      }).catch(err => {
-        console.error('Telegram auth failed:', err);
-      });
+    if (tgInitData) {
+      if (!token) {
+        // Идёт вход через Telegram
+        axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/telegram/auth`, {
+          initData: tgInitData
+        }).then(res => {
+          useAuthStore.getState().setAuth(res.data.user, res.data.token);
+        }).catch(err => {
+          console.error('Telegram auth failed:', err);
+        });
+      } else {
+        // Пользователь уже вошел, привязываем Telegram к аккаунту
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/telegram/link`, {
+          initData: tgInitData
+        }).then(() => {
+          fetchMe();
+        }).catch(err => {
+          console.error('Telegram link failed:', err);
+          fetchMe();
+        });
+      }
     } else if (token) {
-      // 2. Иначе обычный fetchMe по JWT 토кeну
+      // 2. Иначе обычный fetchMe по JWT токену
       fetchMe();
     }
   }, []);

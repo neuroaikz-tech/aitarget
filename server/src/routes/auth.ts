@@ -77,6 +77,45 @@ router.post('/telegram/auth', async (req: Request, res: Response) => {
     }
 });
 
+// Привязка Telegram к существующему аккаунту
+router.post('/telegram/link', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { initData } = req.body;
+        if (!initData) return res.status(400).json({ error: 'Нет initData' });
+
+        const urlParams = new URLSearchParams(initData);
+        const hash = urlParams.get('hash');
+        urlParams.delete('hash');
+
+        const dataCheckString = Array.from(urlParams.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n');
+
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        if (!botToken) return res.status(500).json({ error: 'Бот не настроен' });
+
+        const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+        const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+        if (calculatedHash !== hash) {
+            return res.status(403).json({ error: 'Неверная подпись Telegram' });
+        }
+
+        const tgUserStr = urlParams.get('user');
+        if (!tgUserStr) return res.status(400).json({ error: 'Нет данных пользователя' });
+        const tgUser = JSON.parse(tgUserStr);
+
+        const db = getDb();
+        db.prepare('UPDATE users SET telegram_id = ? WHERE id = ?').run(String(tgUser.id), req.user!.id);
+
+        res.json({ message: 'Telegram аккаунт успешно привязан' });
+    } catch (err: any) {
+        console.error('Ошибка привязки Telegram:', err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // Регистрация
 router.post('/register', async (req: Request, res: Response) => {
     try {
