@@ -54,6 +54,8 @@ export const adsApi = {
 
     getInstagramAccounts: () => api.get('/api/ads/instagram-accounts'),
 
+    getWhatsAppAccounts: () => api.get('/api/ads/whatsapp-accounts'),
+
     getLeadForms: (pageId: string) =>
         api.get(`/api/ads/pages/${pageId}/lead-forms`),
 

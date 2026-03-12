@@ -81,6 +81,12 @@ interface FbApp {
     icon_url?: string;
 }
 
+interface FbWhatsAppAccount {
+    id: string;
+    display_phone_number: string;
+    verified_name: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
@@ -164,9 +170,9 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     // FB Assets (loaded from API)
     const [pixels, setPixels] = useState<FbPixel[]>([]);
     const [igAccounts, setIgAccounts] = useState<FbInstagramAccount[]>([]);
+    const [waAccounts, setWaAccounts] = useState<FbWhatsAppAccount[]>([]);
     const [leadForms, setLeadForms] = useState<FbLeadForm[]>([]);
     const [apps, setApps] = useState<FbApp[]>([]);
-    const [loadingAssets, setLoadingAssets] = useState(false);
 
     // ── Step 1: Base settings ─────────────────────────────────
     const [name, setName] = useState('');
@@ -241,11 +247,11 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
             .catch(() => {})
             .finally(() => setLoadingPages(false));
 
-        setLoadingAssets(true);
         Promise.allSettled([
             adsApi.getInstagramAccounts().then(r => setIgAccounts(r.data.instagram_accounts || [])),
+            adsApi.getWhatsAppAccounts().then(r => setWaAccounts(r.data.whatsapp_accounts || [])),
             adsApi.getApps().then(r => setApps(r.data.apps || [])),
-        ]).finally(() => setLoadingAssets(false));
+        ]);
     }, []);
 
     // When pageId changes → load pixels and lead forms for that page
@@ -558,19 +564,36 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 </div>
                             )}
 
-                            {/* WhatsApp Phone */}
+                            {/* WhatsApp */}
                             {currentDestConfig?.requires_whatsapp_phone && (
                                 <div className="form-group">
-                                    <label className="form-label">Номер WhatsApp * (с кодом страны)</label>
-                                    <input
-                                        type="tel"
-                                        className="form-input"
-                                        placeholder="+77001234567"
-                                        value={whatsappPhone}
-                                        onChange={(e) => setWhatsappPhone(e.target.value)}
-                                    />
+                                    <label className="form-label">WhatsApp номер *</label>
+                                    {waAccounts.length > 0 ? (
+                                        <select
+                                            className="form-select"
+                                            value={whatsappPhone}
+                                            onChange={e => setWhatsappPhone(e.target.value)}
+                                        >
+                                            <option value="">— Выберите номер —</option>
+                                            {waAccounts.map(wa => (
+                                                <option key={wa.id} value={wa.display_phone_number}>
+                                                    {wa.display_phone_number} — {wa.verified_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="tel"
+                                            className="form-input"
+                                            placeholder="+77001234567"
+                                            value={whatsappPhone}
+                                            onChange={(e) => setWhatsappPhone(e.target.value)}
+                                        />
+                                    )}
                                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Пользователь нажмёт кнопку и попадёт прямо в ваш WhatsApp чат
+                                        {waAccounts.length > 0
+                                            ? 'Пользователь попадёт прямо в ваш WhatsApp чат'
+                                            : 'Подключите WhatsApp Business в настройках Facebook страницы — тогда номер подтянется автоматически'}
                                     </span>
                                 </div>
                             )}

@@ -458,6 +458,23 @@ router.get('/accounts/:adAccountId/pixels', authenticate, async (req: AuthReques
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /whatsapp-accounts — WhatsApp номера всех страниц
+// ─────────────────────────────────────────────────────────────
+router.get('/whatsapp-accounts', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+        const pages = await service.getPages();
+        const waAccounts = await service.getWhatsAppAccountsForPages(pages);
+        res.json({ whatsapp_accounts: waAccounts });
+    } catch (err: any) {
+        console.error('[GET /whatsapp-accounts]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /instagram-accounts — Instagram аккаунты всех страниц
 // ─────────────────────────────────────────────────────────────
 router.get('/instagram-accounts', authenticate, async (req: AuthRequest, res: Response) => {

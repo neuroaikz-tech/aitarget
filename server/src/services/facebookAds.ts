@@ -257,6 +257,36 @@ export class FacebookAdsService {
         }
     }
 
+    // Получить WhatsApp Business аккаунты, привязанные к Facebook странице
+    async getWhatsAppAccountsForPages(pages: Array<{ id: string; name: string }>) {
+        const results: Array<{ pageId: string; pageName: string; wabaId: string; phoneId: string; displayPhone: string; verifiedName: string }> = [];
+        await Promise.allSettled(
+            pages.map(async (page) => {
+                try {
+                    const data = await this.get(`/${page.id}`, {
+                        fields: 'whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}',
+                    });
+                    const waba = data.whatsapp_business_accounts?.data?.[0];
+                    if (!waba) return;
+                    const phones: any[] = waba.phone_numbers?.data || [];
+                    phones.forEach((phone: any) => {
+                        results.push({
+                            pageId: page.id,
+                            pageName: page.name,
+                            wabaId: waba.id,
+                            phoneId: phone.id,
+                            displayPhone: phone.display_phone_number,
+                            verifiedName: phone.verified_name || waba.name,
+                        });
+                    });
+                } catch {
+                    // page may not have WhatsApp connected
+                }
+            })
+        );
+        return results;
+    }
+
     // Получить приложения пользователя
     async getApps() {
         try {
