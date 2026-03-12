@@ -227,12 +227,8 @@ router.get('/facebook', (req: any, res: Response, next: any) => {
                 'pages_show_list',
                 'pages_read_engagement',
                 'pages_manage_ads',
-                // Business Manager — required for pixels, WhatsApp, assets
+                // Business Manager — required for pixels, WABA, assets
                 'business_management',
-                // Instagram
-                'instagram_basic',
-                // WhatsApp Business
-                'whatsapp_business_management',
             ],
             state: user.id,
         } as any)(req, res, next);
