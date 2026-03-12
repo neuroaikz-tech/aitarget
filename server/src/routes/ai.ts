@@ -5,6 +5,8 @@ import { getDb } from '../db/database';
 import { runAnalysisForUser, getLatestAnalysis } from '../services/scheduler';
 import { FacebookAdsService } from '../services/facebookAds';
 import { analyzeCampaigns } from '../services/aiAnalyst';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 
 const router = Router();
 
@@ -92,6 +94,58 @@ router.post('/settings', authenticate, async (req: AuthRequest, res: Response) =
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Ошибка сохранения настроек' });
+    }
+});
+
+// Сгенерировать креативы (ИИ)
+router.post('/generate-creatives', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { prompt } = req.body;
+        if (!prompt) return res.status(400).json({ error: 'Промпт обязателен' });
+
+        const db = getDb();
+        const settings = db.prepare('SELECT gemini_api_key FROM ai_settings WHERE user_id = ?').get(req.user.id) as any;
+        const apiKey = process.env.GEMINI_API_KEY || (settings && settings.gemini_api_key);
+
+        if (!apiKey) {
+            return res.status(400).json({ error: 'Не найден GEMINI API KEY на сервере или в настройках' });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+        // Улучшаем промпт с помощью Gemini
+        const aiPrompt = await model.generateContent(`
+            You are an expert AI prompt engineer for image generation (Midjourney, Stable Diffusion).
+            I will give you a short user description of an advertisement creative.
+            Your job is to write exactly ONE highly detailed, cinematic, professional image generation prompt in English.
+            Add keywords like "ultra realistic, high quality, advertising photography, 8k resolution, cinematic lighting".
+            Do not output any introductory text, just the raw English prompt string.
+            User description: ${prompt}
+        `);
+        const enhancedPrompt = aiPrompt.response.text().trim();
+        
+        // Генерируем 4 варианта через Pollinations AI (со стороны сервера, чтобы обойти блокировки РФ)
+        const seed = Math.floor(Math.random() * 1000000);
+        const encoded = encodeURIComponent(enhancedPrompt);
+        
+        const urls = [
+            `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1080&nologo=true&seed=${seed}`,
+            `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1080&nologo=true&seed=${seed + 1}`,
+            `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1080&nologo=true&seed=${seed + 2}`,
+            `https://image.pollinations.ai/prompt/${encoded}?width=1080&height=1080&nologo=true&seed=${seed + 3}`,
+        ];
+
+        // Скачиваем их в Base64, чтобы отдать клиенту
+        const base64Images = await Promise.all(urls.map(async (url) => {
+            const imgRes = await axios.get(url, { responseType: 'arraybuffer' });
+            return `data:image/jpeg;base64,${Buffer.from(imgRes.data, 'binary').toString('base64')}`;
+        }));
+
+        res.json({ images: base64Images, debug: { enhancedPrompt } });
+    } catch (err: any) {
+        console.error('Ошибка генерации креативов:', err?.message || err);
+        res.status(500).json({ error: 'Ошибка генерации (внутренняя или API заблокировано)' });
     }
 });
 

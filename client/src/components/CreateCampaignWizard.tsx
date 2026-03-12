@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Wand2, Upload, Video, LayoutTemplate } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { adsApi } from '../api';
+import api, { adsApi } from '../api';
 
 interface Props {
     accountId: string;
@@ -27,6 +27,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     // Step 1: Base
     const [name, setName] = useState('');
     const [objective, setObjective] = useState('OUTCOME_TRAFFIC');
+    const [destination, setDestination] = useState('WEBSITE'); // Новое: место назначения
     const [budget, setBudget] = useState('');
 
     // Step 2: Targeting & Placements
@@ -70,31 +71,30 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
         setIsGeneratingAi(true);
 
         try {
-            const seed = Math.floor(Math.random() * 1000000);
-            const encodedPrompt = encodeURIComponent(aiPrompt + ", ultra realistic, high quality, advertising, professional, 4k");
-            
-            const urls = [
-                `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`,
-                `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed + 1}`,
-                `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed + 2}`,
-                `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed + 3}`
-            ];
-            
-            const loadImg = (url: string) => new Promise<string>((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(url);
-                img.onerror = () => reject();
-                img.src = url;
-            });
-
-            await Promise.all(urls.map(loadImg));
-
-            setGeneratedImages(urls);
-            toast.success('ИИ успешно сгенерировал 4 варианта!');
-        } catch (error) {
-            toast.error('Ошибка при генерации креативов. Попробуйте другой промпт.');
+            const response = await api.post('/api/ai/generate-creatives', { prompt: aiPrompt });
+            if (response.data.images && response.data.images.length > 0) {
+                setGeneratedImages(response.data.images);
+                toast.success('Gemini успешно сгенерировал 4 варианта!');
+            } else {
+                toast.error('Изображения не получены, попробуйте изменить промпт.');
+            }
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || 'Ошибка при генерации креативов. Попробуйте другой промпт.');
         } finally {
             setIsGeneratingAi(false);
+        }
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 50 * 1024 * 1024) {
+                toast.error('Файл слишком большой. Максимум 50MB.');
+                return;
+            }
+            const url = URL.createObjectURL(file);
+            setSelectedImage(url);
+            toast.success('Файл успешно загружен!');
         }
     };
 
@@ -189,6 +189,20 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                     {OBJECTIVES.map((o) => (
                                         <option key={o.value} value={o.value}>{o.label}</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Место назначения (куда ведём трафик) *</label>
+                                <select
+                                    className="form-select"
+                                    value={destination}
+                                    onChange={(e) => setDestination(e.target.value)}
+                                >
+                                    <option value="WEBSITE">Сайт или лендинг</option>
+                                    <option value="WHATSAPP">WhatsApp (Сообщения)</option>
+                                    <option value="INSTAGRAM_DIRECT">Instagram Direct (Сообщения)</option>
+                                    <option value="LEAD_FORM">Моментальная форма внутри FB/IG</option>
                                 </select>
                             </div>
 
@@ -376,9 +390,24 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                     </div>
                                     <h4 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '8px' }}>Загрузите видео или фото</h4>
                                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>JPG, PNG, GIF, MP4 до 50MB</p>
-                                    <button className="btn btn-secondary">
+                                    <label className="btn btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer' }}>
                                         <Upload size={16} /> Выбрать файл
-                                    </button>
+                                        <input 
+                                            type="file" 
+                                            accept="image/*,video/mp4,video/mov" 
+                                            style={{ display: 'none' }} 
+                                            onChange={handleFileUpload} 
+                                        />
+                                    </label>
+                                    
+                                    {selectedImage && creativeMode === 'upload' && (
+                                        <div style={{ marginTop: '20px', padding: '10px', background: 'var(--bg-card)', borderRadius: '12px' }}>
+                                            <div style={{ fontSize: '13px', fontWeight: '600', color: '#22c55e', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                <Check size={14} /> Файл прикреплен
+                                            </div>
+                                            <img src={selectedImage} alt="Uploaded" style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '8px' }} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -412,8 +441,9 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                     <li><strong>Название:</strong> {name}</li>
                                     <li><strong>Бюджет:</strong> ${budget || '0'} / день</li>
                                     <li><strong>Аудитория:</strong> {gender === 'ALL' ? 'Все' : gender === 'MALE' ? 'Мужчины' : 'Женщины'}, {ageMin}-{ageMax} лет</li>
+                                    <li><strong>Куда ведем:</strong> {destination === 'WEBSITE' ? 'Сайт' : destination === 'WHATSAPP' ? 'WhatsApp' : destination === 'INSTAGRAM_DIRECT' ? 'Instagram Direct' : 'Куда-то ещё'}</li>
                                     <li><strong>Плейсменты:</strong> {Object.values(placements).filter(Boolean).length} площадок</li>
-                                    <li><strong>Креатив:</strong> {creativeMode === 'ai' ? 'Сгенерирован через ИИ' : 'Загружен'}</li>
+                                    <li><strong>Креатив:</strong> {creativeMode === 'ai' ? 'Сгенерирован через Gemini' : 'Загружен'}</li>
                                 </ul>
                             </div>
                         </div>
