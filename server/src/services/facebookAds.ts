@@ -69,11 +69,11 @@ export class FacebookAdsService {
         return data.data || [];
     }
 
-    // Получить страницы
+    // Получить страницы (включая linked WhatsApp и Instagram)
     async getPages() {
         const data = await this.get('/me/accounts', {
-            fields: 'id,name,access_token',
-            limit: 10,
+            fields: 'id,name,access_token,whatsapp_number,connected_instagram_account{id,name,username}',
+            limit: 25,
         });
         return data.data || [];
     }
@@ -207,24 +207,28 @@ export class FacebookAdsService {
         return data.data || [];
     }
 
-    // Получить Instagram Business аккаунт, привязанный к Facebook странице
-    async getInstagramAccount(pageId: string) {
-        try {
-            const data = await this.get(`/${pageId}`, {
-                fields: 'instagram_business_account{id,name,username,profile_picture_url}',
-            });
-            return data.instagram_business_account || null;
-        } catch {
-            return null;
-        }
-    }
-
-    // Получить Instagram аккаунты для всех переданных страниц (батч)
-    async getInstagramAccountsForPages(pages: Array<{ id: string; name: string }>) {
+    // Получить Instagram аккаунты для всех страниц
+    // Данные уже есть в getPages() через connected_instagram_account,
+    // но делаем fallback запрос через page token если поле пустое
+    async getInstagramAccountsForPages(pages: Array<{ id: string; name: string; access_token?: string; connected_instagram_account?: any }>) {
         const results: Array<{ pageId: string; pageName: string; igId: string; igName: string; igUsername: string }> = [];
+
         await Promise.allSettled(
             pages.map(async (page) => {
-                const ig = await this.getInstagramAccount(page.id);
+                // Сначала пробуем данные из уже загруженной страницы
+                let ig = page.connected_instagram_account || null;
+
+                // Если нет — запрашиваем через page access token (более широкий доступ)
+                if (!ig?.id && page.access_token) {
+                    try {
+                        const pageService = new FacebookAdsService(page.access_token);
+                        const data = await pageService['get'](`/${page.id}`, {
+                            fields: 'connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
+                        });
+                        ig = data.connected_instagram_account || data.instagram_business_account || null;
+                    } catch { }
+                }
+
                 if (ig?.id) {
                     results.push({
                         pageId: page.id,
@@ -257,69 +261,77 @@ export class FacebookAdsService {
         }
     }
 
-    // Получить WhatsApp номера — поддерживает оба типа подключения:
-    // 1. Linked WhatsApp (личный номер привязан к странице/аккаунту)
-    // 2. WABA через Business Manager (WhatsApp Business API)
-    async getWhatsAppNumbers() {
+    // Получить WhatsApp номера из страниц (linked profiles + WABA)
+    async getWhatsAppNumbers(pages?: Array<{ id: string; name: string; access_token?: string; whatsapp_number?: string }>) {
         const results: Array<{ id: string; display_phone_number: string; verified_name: string }> = [];
 
-        await Promise.allSettled([
-            // Источник 1: linked_whatsapp — номер привязан к Facebook странице напрямую
-            (async () => {
-                try {
-                    const pages = await this.get('/me/accounts', {
-                        fields: 'id,name,whatsapp_number',
-                        limit: 25,
-                    });
-                    for (const page of (pages.data || [])) {
-                        if (page.whatsapp_number) {
+        // Источник 1: whatsapp_number уже в данных страницы (linked WhatsApp)
+        const pageList = pages || (await this.get('/me/accounts', {
+            fields: 'id,name,access_token,whatsapp_number',
+            limit: 25,
+        })).data || [];
+
+        for (const page of pageList) {
+            if (page.whatsapp_number) {
+                results.push({
+                    id: `page_${page.id}`,
+                    display_phone_number: page.whatsapp_number,
+                    verified_name: page.name,
+                });
+            }
+        }
+
+        // Источник 2: запрос через page token — иногда whatsapp_number доступен только так
+        await Promise.allSettled(
+            pageList
+                .filter((p: any) => !p.whatsapp_number && p.access_token)
+                .map(async (page: any) => {
+                    try {
+                        const pageService = new FacebookAdsService(page.access_token);
+                        const data = await pageService['get'](`/${page.id}`, {
+                            fields: 'whatsapp_number',
+                        });
+                        if (data.whatsapp_number && !results.find(r => r.display_phone_number === data.whatsapp_number)) {
                             results.push({
                                 id: `page_${page.id}`,
-                                display_phone_number: page.whatsapp_number,
+                                display_phone_number: data.whatsapp_number,
                                 verified_name: page.name,
                             });
                         }
-                    }
-                } catch { /* no pages or no whatsapp_number field */ }
-            })(),
+                    } catch { }
+                })
+        );
 
-            // Источник 2: WABA через Business Manager (для крупных аккаунтов)
-            (async () => {
-                try {
-                    const bizData = await this.get('/me/businesses', { fields: 'id,name', limit: 10 });
-                    await Promise.allSettled(
-                        (bizData.data || []).map(async (biz: any) => {
-                            try {
-                                const wabaData = await this.get(`/${biz.id}/whatsapp_business_accounts`, {
-                                    fields: 'id,name',
-                                    limit: 10,
-                                });
-                                await Promise.allSettled(
-                                    (wabaData.data || []).map(async (waba: any) => {
-                                        try {
-                                            const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
-                                                fields: 'id,display_phone_number,verified_name',
-                                                limit: 50,
+        // Источник 3: WABA через Business Manager (для крупных аккаунтов с WABA API)
+        try {
+            const bizData = await this.get('/me/businesses', { fields: 'id,name', limit: 10 });
+            await Promise.allSettled(
+                (bizData.data || []).map(async (biz: any) => {
+                    try {
+                        const wabaData = await this.get(`/${biz.id}/whatsapp_business_accounts`, { fields: 'id,name', limit: 10 });
+                        await Promise.allSettled(
+                            (wabaData.data || []).map(async (waba: any) => {
+                                try {
+                                    const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
+                                        fields: 'id,display_phone_number,verified_name',
+                                        limit: 50,
+                                    });
+                                    for (const phone of (phonesData.data || [])) {
+                                        if (!results.find(r => r.display_phone_number === phone.display_phone_number)) {
+                                            results.push({
+                                                id: phone.id,
+                                                display_phone_number: phone.display_phone_number,
+                                                verified_name: phone.verified_name || waba.name,
                                             });
-                                            for (const phone of (phonesData.data || [])) {
-                                                // избегаем дублей
-                                                if (!results.find(r => r.display_phone_number === phone.display_phone_number)) {
-                                                    results.push({
-                                                        id: phone.id,
-                                                        display_phone_number: phone.display_phone_number,
-                                                        verified_name: phone.verified_name || waba.name,
-                                                    });
-                                                }
-                                            }
-                                        } catch { }
-                                    })
-                                );
-                            } catch { }
-                        })
-                    );
-                } catch { /* no businesses */ }
-            })(),
-        ]);
+                                        }
+                                    }
+                                } catch { }
+                            })
+                        );
+                    } catch { }
+                })
+            );
+        } catch { }
 
         return results;
     }

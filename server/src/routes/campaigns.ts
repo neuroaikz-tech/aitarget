@@ -495,7 +495,9 @@ router.get('/whatsapp-accounts', authenticate, async (req: AuthRequest, res: Res
         const token = requireToken(req.user.id, res);
         if (!token) return;
         const service = new FacebookAdsService(token);
-        const whatsapp_accounts = await service.getWhatsAppNumbers();
+        // Страницы уже содержат whatsapp_number — передаём их сразу
+        const pages = await service.getPages();
+        const whatsapp_accounts = await service.getWhatsAppNumbers(pages);
         res.json({ whatsapp_accounts });
     } catch (err: any) {
         console.error('[GET /whatsapp-accounts]', err?.response?.data || err.message);
@@ -511,6 +513,7 @@ router.get('/instagram-accounts', authenticate, async (req: AuthRequest, res: Re
         const token = requireToken(req.user.id, res);
         if (!token) return;
         const service = new FacebookAdsService(token);
+        // Страницы уже содержат connected_instagram_account — передаём их сразу
         const pages = await service.getPages();
         const igAccounts = await service.getInstagramAccountsForPages(pages);
         res.json({ instagram_accounts: igAccounts });
