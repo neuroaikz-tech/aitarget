@@ -159,7 +159,7 @@ export default function DashboardPage() {
                             </div>
                         </div>
                     </div>
-                    <a href="/settings" className="btn btn-facebook">
+                    <a href="/settings" className="btn btn-facebook mobile-hide">
                         <Facebook size={16} />
                         Подключить
                     </a>
@@ -198,7 +198,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px' }}>
+            <div className="dashboard-grid">
                 {/* Recent Campaigns */}
                 <div className="card">
                     <div className="card-header">

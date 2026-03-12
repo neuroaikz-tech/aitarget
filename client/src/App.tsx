@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import axios from 'axios';
 import { useAuthStore } from './store/authStore';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
@@ -15,7 +16,20 @@ export default function App() {
   const { fetchMe, token } = useAuthStore();
 
   useEffect(() => {
-    if (token) {
+    // 1. Проверяем Telegram WebApp
+    const tgInitData = (window as any).Telegram?.WebApp?.initData;
+
+    if (tgInitData && !token) {
+      // Идёт вход через Telegram
+      axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/telegram/auth`, {
+        initData: tgInitData
+      }).then(res => {
+        useAuthStore.getState().setAuth(res.data.user, res.data.token);
+      }).catch(err => {
+        console.error('Telegram auth failed:', err);
+      });
+    } else if (token) {
+      // 2. Иначе обычный fetchMe по JWT 토кeну
       fetchMe();
     }
   }, []);

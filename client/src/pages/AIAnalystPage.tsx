@@ -248,7 +248,7 @@ export default function AIAnalystPage() {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px' }}>
+                            <div className="dashboard-grid">
                                 {/* Recommendations */}
                                 <div>
                                     <h2 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>

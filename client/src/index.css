@@ -643,7 +643,7 @@ input, button, select, textarea {
 /* ===== STATS ===== */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -1095,17 +1095,12 @@ input, button, select, textarea {
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .sidebar {
-    transform: translateX(-100%);
-    width: 280px;
-  }
-  
-  .sidebar.open {
-    transform: translateX(0);
-    box-shadow: 4px 0 40px rgba(0,0,0,0.5);
+    display: none; /* Прячем сайдбар полностью в мобилке */
   }
   
   .main-with-sidebar {
     margin-left: 0;
+    padding-bottom: 70px; /* Отступ для нижней панели меню */
   }
   
   .page-content {
@@ -1124,4 +1119,76 @@ input, button, select, textarea {
   .auth-hero-title {
     font-size: 36px;
   }
+
+  /* Исправление грида дашборда */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Скрываем кнопки 'Подключить' если они едут */
+  .mobile-hide {
+    display: none !important;
+  }
+}
+
+/* ===== MOBILE NAV (Telegram Mini App Style) ===== */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 16px;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: flex;
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  position: relative;
+  text-decoration: none;
+  flex: 1;
+  height: 100%;
+}
+
+.mobile-nav-item.active {
+  color: var(--accent-light);
+}
+
+.mobile-nav-item .badge {
+  position: absolute;
+  top: 8px;
+  right: 50%;
+  margin-right: -24px;
+  background: linear-gradient(135deg, #7c3aed, #4f6ef7);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.8);
+}
+
+/* Грид Дашборда десктопный */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
 }
