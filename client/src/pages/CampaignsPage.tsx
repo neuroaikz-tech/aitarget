@@ -12,6 +12,7 @@ import {
     Megaphone,
     X,
 } from 'lucide-react';
+import CreateCampaignWizard from '../components/CreateCampaignWizard';
 
 interface Campaign {
     id: string;
@@ -54,13 +55,6 @@ export default function CampaignsPage() {
     const [hasFb, setHasFb] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-
-    // Create form
-    const [newName, setNewName] = useState('');
-    const [newObjective, setNewObjective] = useState('OUTCOME_TRAFFIC');
-    const [newStatus, setNewStatus] = useState('PAUSED');
-    const [newDailyBudget, setNewDailyBudget] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
         init();
@@ -119,33 +113,6 @@ export default function CampaignsPage() {
             result = result.filter((c) => c.status === statusFilter);
         }
         setFiltered(result);
-    };
-
-    const handleCreate = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newName || !newObjective) {
-            toast.error('Заполните обязательные поля');
-            return;
-        }
-        setIsCreating(true);
-        try {
-            await adsApi.createCampaign(selectedAccount, {
-                name: newName,
-                objective: newObjective,
-                status: newStatus,
-                daily_budget: newDailyBudget ? parseInt(newDailyBudget) * 100 : undefined,
-                special_ad_categories: [],
-            });
-            toast.success('Кампания создана!');
-            setShowCreateModal(false);
-            setNewName('');
-            setNewDailyBudget('');
-            await loadCampaigns(selectedAccount);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || 'Ошибка создания');
-        } finally {
-            setIsCreating(false);
-        }
     };
 
     const handleToggleStatus = async (campaign: Campaign) => {
@@ -434,89 +401,14 @@ export default function CampaignsPage() {
 
             {/* Create Campaign Modal */}
             {showCreateModal && (
-                <div className="modal-overlay" onClick={(e) => {
-                    if (e.target === e.currentTarget) setShowCreateModal(false);
-                }}>
-                    <div className="modal">
-                        <div className="modal-header">
-                            <h2 className="modal-title">Создать кампанию</h2>
-                            <button className="modal-close" onClick={() => setShowCreateModal(false)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleCreate}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                <div className="form-group">
-                                    <label className="form-label">Название кампании *</label>
-                                    <input
-                                        id="campaign-name-input"
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Например: Продажи лето 2025"
-                                        value={newName}
-                                        onChange={(e) => setNewName(e.target.value)}
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Цель кампании *</label>
-                                    <select
-                                        id="campaign-objective-select"
-                                        className="form-select"
-                                        value={newObjective}
-                                        onChange={(e) => setNewObjective(e.target.value)}
-                                    >
-                                        {OBJECTIVES.map((o) => (
-                                            <option key={o.value} value={o.value}>{o.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Начальный статус</label>
-                                    <select
-                                        id="campaign-status-select"
-                                        className="form-select"
-                                        value={newStatus}
-                                        onChange={(e) => setNewStatus(e.target.value)}
-                                    >
-                                        <option value="PAUSED">На паузе (рекомендуется)</option>
-                                        <option value="ACTIVE">Активна</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Дневной бюджет ($)</label>
-                                    <input
-                                        id="campaign-budget-input"
-                                        type="number"
-                                        className="form-input"
-                                        placeholder="Например: 10.00"
-                                        value={newDailyBudget}
-                                        onChange={(e) => setNewDailyBudget(e.target.value)}
-                                        min="1"
-                                        step="0.01"
-                                    />
-                                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                        Оставьте пустым для установки бюджета позже
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
-                                    Отмена
-                                </button>
-                                <button type="submit" className="btn btn-primary" disabled={isCreating} id="campaign-create-submit">
-                                    {isCreating ? <span className="loading-spinner" /> : <Plus size={16} />}
-                                    {isCreating ? 'Создаём...' : 'Создать'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <CreateCampaignWizard 
+                    accountId={selectedAccount}
+                    onClose={() => setShowCreateModal(false)}
+                    onSuccess={() => {
+                        setShowCreateModal(false);
+                        loadCampaigns(selectedAccount);
+                    }}
+                />
             )}
         </div>
     );
