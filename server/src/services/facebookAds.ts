@@ -21,10 +21,25 @@ export class FacebookAdsService {
     }
 
     private async post(endpoint: string, data: Record<string, any> = {}) {
-        const response = await axios.post(`${FB_API_BASE}${endpoint}`, null, {
-            params: {
-                access_token: this.accessToken,
-                ...data,
+        const formData = new URLSearchParams();
+        formData.append('access_token', this.accessToken);
+        
+        for (const key in data) {
+            if (data[key] !== undefined && data[key] !== null) {
+                // Если передали объект или массив, нужно превратить его в строку для urlencoded
+                if (typeof data[key] === 'object' && !Array.isArray(data[key])) {
+                    formData.append(key, JSON.stringify(data[key]));
+                } else if (Array.isArray(data[key])) {
+                     formData.append(key, JSON.stringify(data[key]));
+                } else {
+                    formData.append(key, String(data[key]));
+                }
+            }
+        }
+
+        const response = await axios.post(`${FB_API_BASE}${endpoint}`, formData.toString(), {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
         });
         return response.data;

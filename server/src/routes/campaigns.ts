@@ -124,13 +124,18 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                                 : objective === 'OUTCOME_ENGAGEMENT' ? 'POST_ENGAGEMENT'
                                 : 'REACH';
 
-            const adSet = await service.createAdSet(req.params.adAccountId as string, {
+            let promotedObject = undefined;
+            if (pageId && (objective === 'OUTCOME_ENGAGEMENT' || destination !== 'WEBSITE')) {
+                // Вовлеченность или трафик в мессенджеры часто требует привязки к странице на уровне AdSet
+                promotedObject = JSON.stringify({ page_id: pageId });
+            }
+
+            const adSetParams: any = {
                 campaign_id: campaign.id,
                 name: `${name} - AdSet`,
                 optimization_goal: optimizedGoal,
                 billing_event: 'IMPRESSIONS',
-                bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-                daily_budget: daily_budget || 500, // Минимум для FB API
+                daily_budget: daily_budget || 500, // Минимум для FB API ($5)
                 status: 'PAUSED',
                 targeting: JSON.stringify({
                     age_min: targeting?.ageMin ? parseInt(targeting.ageMin) : 18,
@@ -141,7 +146,11 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                     instagram_positions: instagram_positions.length > 0 ? instagram_positions : undefined,
                     device_platforms: ['mobile', 'desktop'],
                 })
-            });
+            };
+
+            if (promotedObject) adSetParams.promoted_object = promotedObject;
+
+            const adSet = await service.createAdSet(req.params.adAccountId as string, adSetParams);
 
             // 3. Загружаем изображение и создаем объявление (если есть pageId и image)
             if (adSet?.id && pageId && image && image.startsWith('data:image')) {
@@ -174,7 +183,10 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
 
         } catch (e: any) {
             console.error('Ошибка при создании AdSet/Ad (кампания создана):', e?.response?.data || e);
-            // Не блочим отдачу кампании, так как FB API может быть капризным без правильных Page ID и Billing
+            // Возвращаем ошибку на фронтенд, чтобы понять, из-за чего Facebook отклоняет создание
+            return res.status(400).json({ 
+                error: `Кампания создана, но Группа объявлений не прошла валидацию: ${e?.response?.data?.error?.message || e.message}` 
+            });
         }
 
         res.status(201).json({ campaign });
