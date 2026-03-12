@@ -450,10 +450,16 @@ router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response)
         if (!token) return;
         const service = new FacebookAdsService(token);
 
-        const [permissionsData, meData, pagesData] = await Promise.allSettled([
+        const [permissionsData, meData, pagesRawData, pagesFullData] = await Promise.allSettled([
             service['get']('/me/permissions'),
             service['get']('/me', { fields: 'id,name,email' }),
+            // Базовый запрос страниц
             service['get']('/me/accounts', { fields: 'id,name', limit: 5 }),
+            // Полный запрос с нужными полями
+            service['get']('/me/accounts', {
+                fields: 'id,name,whatsapp_number,connected_instagram_account{id,name,username}',
+                limit: 5,
+            }),
         ]);
 
         res.json({
@@ -461,10 +467,12 @@ router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response)
             permissions: permissionsData.status === 'fulfilled'
                 ? permissionsData.value.data?.filter((p: any) => p.status === 'granted').map((p: any) => p.permission)
                 : { error: (permissionsData as any).reason?.message },
-            pages_count: pagesData.status === 'fulfilled'
-                ? (pagesData.value.data?.length ?? 0)
-                : { error: (pagesData as any).reason?.message },
-            note: 'Переподключите Facebook аккаунт если нужных прав нет в списке',
+            pages_basic: pagesRawData.status === 'fulfilled'
+                ? pagesRawData.value.data
+                : { error: (pagesRawData as any).reason?.message },
+            pages_with_assets: pagesFullData.status === 'fulfilled'
+                ? pagesFullData.value.data
+                : { error: (pagesFullData as any).reason?.message },
         });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
