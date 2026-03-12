@@ -257,50 +257,70 @@ export class FacebookAdsService {
         }
     }
 
-    // Получить WhatsApp Business номера через Business Manager
-    // Facebook хранит WABA в /me/businesses → /{businessId}/whatsapp_business_accounts → /{wabaId}/phone_numbers
+    // Получить WhatsApp номера — поддерживает оба типа подключения:
+    // 1. Linked WhatsApp (личный номер привязан к странице/аккаунту)
+    // 2. WABA через Business Manager (WhatsApp Business API)
     async getWhatsAppNumbers() {
         const results: Array<{ id: string; display_phone_number: string; verified_name: string }> = [];
-        try {
-            // 1. Получаем бизнес-аккаунты пользователя
-            const bizData = await this.get('/me/businesses', {
-                fields: 'id,name',
-                limit: 10,
-            });
-            const businesses: any[] = bizData.data || [];
 
-            // 2. Для каждого бизнеса — получаем WABA и их номера
-            await Promise.allSettled(
-                businesses.map(async (biz) => {
-                    try {
-                        const wabaData = await this.get(`/${biz.id}/whatsapp_business_accounts`, {
-                            fields: 'id,name',
-                            limit: 10,
-                        });
-                        const wabas: any[] = wabaData.data || [];
+        await Promise.allSettled([
+            // Источник 1: linked_whatsapp — номер привязан к Facebook странице напрямую
+            (async () => {
+                try {
+                    const pages = await this.get('/me/accounts', {
+                        fields: 'id,name,whatsapp_number',
+                        limit: 25,
+                    });
+                    for (const page of (pages.data || [])) {
+                        if (page.whatsapp_number) {
+                            results.push({
+                                id: `page_${page.id}`,
+                                display_phone_number: page.whatsapp_number,
+                                verified_name: page.name,
+                            });
+                        }
+                    }
+                } catch { /* no pages or no whatsapp_number field */ }
+            })(),
 
-                        await Promise.allSettled(
-                            wabas.map(async (waba) => {
-                                try {
-                                    const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
-                                        fields: 'id,display_phone_number,verified_name',
-                                        limit: 50,
-                                    });
-                                    const phones: any[] = phonesData.data || [];
-                                    phones.forEach((phone) => {
-                                        results.push({
-                                            id: phone.id,
-                                            display_phone_number: phone.display_phone_number,
-                                            verified_name: phone.verified_name || waba.name,
-                                        });
-                                    });
-                                } catch { /* waba may not have permissions */ }
-                            })
-                        );
-                    } catch { /* business may not have WABA */ }
-                })
-            );
-        } catch { /* user may not have businesses */ }
+            // Источник 2: WABA через Business Manager (для крупных аккаунтов)
+            (async () => {
+                try {
+                    const bizData = await this.get('/me/businesses', { fields: 'id,name', limit: 10 });
+                    await Promise.allSettled(
+                        (bizData.data || []).map(async (biz: any) => {
+                            try {
+                                const wabaData = await this.get(`/${biz.id}/whatsapp_business_accounts`, {
+                                    fields: 'id,name',
+                                    limit: 10,
+                                });
+                                await Promise.allSettled(
+                                    (wabaData.data || []).map(async (waba: any) => {
+                                        try {
+                                            const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
+                                                fields: 'id,display_phone_number,verified_name',
+                                                limit: 50,
+                                            });
+                                            for (const phone of (phonesData.data || [])) {
+                                                // избегаем дублей
+                                                if (!results.find(r => r.display_phone_number === phone.display_phone_number)) {
+                                                    results.push({
+                                                        id: phone.id,
+                                                        display_phone_number: phone.display_phone_number,
+                                                        verified_name: phone.verified_name || waba.name,
+                                                    });
+                                                }
+                                            }
+                                        } catch { }
+                                    })
+                                );
+                            } catch { }
+                        })
+                    );
+                } catch { /* no businesses */ }
+            })(),
+        ]);
+
         return results;
     }
 
