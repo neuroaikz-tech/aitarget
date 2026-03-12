@@ -257,33 +257,50 @@ export class FacebookAdsService {
         }
     }
 
-    // Получить WhatsApp Business аккаунты, привязанные к Facebook странице
-    async getWhatsAppAccountsForPages(pages: Array<{ id: string; name: string }>) {
-        const results: Array<{ pageId: string; pageName: string; wabaId: string; phoneId: string; displayPhone: string; verifiedName: string }> = [];
-        await Promise.allSettled(
-            pages.map(async (page) => {
-                try {
-                    const data = await this.get(`/${page.id}`, {
-                        fields: 'whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}',
-                    });
-                    const waba = data.whatsapp_business_accounts?.data?.[0];
-                    if (!waba) return;
-                    const phones: any[] = waba.phone_numbers?.data || [];
-                    phones.forEach((phone: any) => {
-                        results.push({
-                            pageId: page.id,
-                            pageName: page.name,
-                            wabaId: waba.id,
-                            phoneId: phone.id,
-                            displayPhone: phone.display_phone_number,
-                            verifiedName: phone.verified_name || waba.name,
+    // Получить WhatsApp Business номера через Business Manager
+    // Facebook хранит WABA в /me/businesses → /{businessId}/whatsapp_business_accounts → /{wabaId}/phone_numbers
+    async getWhatsAppNumbers() {
+        const results: Array<{ id: string; display_phone_number: string; verified_name: string }> = [];
+        try {
+            // 1. Получаем бизнес-аккаунты пользователя
+            const bizData = await this.get('/me/businesses', {
+                fields: 'id,name',
+                limit: 10,
+            });
+            const businesses: any[] = bizData.data || [];
+
+            // 2. Для каждого бизнеса — получаем WABA и их номера
+            await Promise.allSettled(
+                businesses.map(async (biz) => {
+                    try {
+                        const wabaData = await this.get(`/${biz.id}/whatsapp_business_accounts`, {
+                            fields: 'id,name',
+                            limit: 10,
                         });
-                    });
-                } catch {
-                    // page may not have WhatsApp connected
-                }
-            })
-        );
+                        const wabas: any[] = wabaData.data || [];
+
+                        await Promise.allSettled(
+                            wabas.map(async (waba) => {
+                                try {
+                                    const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
+                                        fields: 'id,display_phone_number,verified_name',
+                                        limit: 50,
+                                    });
+                                    const phones: any[] = phonesData.data || [];
+                                    phones.forEach((phone) => {
+                                        results.push({
+                                            id: phone.id,
+                                            display_phone_number: phone.display_phone_number,
+                                            verified_name: phone.verified_name || waba.name,
+                                        });
+                                    });
+                                } catch { /* waba may not have permissions */ }
+                            })
+                        );
+                    } catch { /* business may not have WABA */ }
+                })
+            );
+        } catch { /* user may not have businesses */ }
         return results;
     }
 

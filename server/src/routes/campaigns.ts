@@ -442,6 +442,36 @@ router.get('/objectives', authenticate, (_req: AuthRequest, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /debug/token — проверить права текущего токена FB
+// ─────────────────────────────────────────────────────────────
+router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+
+        const [permissionsData, meData, pagesData] = await Promise.allSettled([
+            service['get']('/me/permissions'),
+            service['get']('/me', { fields: 'id,name,email' }),
+            service['get']('/me/accounts', { fields: 'id,name', limit: 5 }),
+        ]);
+
+        res.json({
+            me: meData.status === 'fulfilled' ? meData.value : { error: (meData as any).reason?.message },
+            permissions: permissionsData.status === 'fulfilled'
+                ? permissionsData.value.data?.filter((p: any) => p.status === 'granted').map((p: any) => p.permission)
+                : { error: (permissionsData as any).reason?.message },
+            pages_count: pagesData.status === 'fulfilled'
+                ? (pagesData.value.data?.length ?? 0)
+                : { error: (pagesData as any).reason?.message },
+            note: 'Переподключите Facebook аккаунт если нужных прав нет в списке',
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /accounts/:adAccountId/pixels — пиксели аккаунта
 // ─────────────────────────────────────────────────────────────
 router.get('/accounts/:adAccountId/pixels', authenticate, async (req: AuthRequest, res: Response) => {
@@ -465,9 +495,8 @@ router.get('/whatsapp-accounts', authenticate, async (req: AuthRequest, res: Res
         const token = requireToken(req.user.id, res);
         if (!token) return;
         const service = new FacebookAdsService(token);
-        const pages = await service.getPages();
-        const waAccounts = await service.getWhatsAppAccountsForPages(pages);
-        res.json({ whatsapp_accounts: waAccounts });
+        const whatsapp_accounts = await service.getWhatsAppNumbers();
+        res.json({ whatsapp_accounts });
     } catch (err: any) {
         console.error('[GET /whatsapp-accounts]', err?.response?.data || err.message);
         res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });

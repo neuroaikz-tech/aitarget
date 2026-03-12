@@ -217,7 +217,23 @@ router.get('/facebook', (req: any, res: Response, next: any) => {
 
         // Вызываем passport.authenticate напрямую с state=userId
         passport.authenticate('facebook', {
-            scope: ['email', 'ads_management', 'ads_read', 'business_management', 'public_profile'],
+            scope: [
+                'email',
+                'public_profile',
+                // Ads
+                'ads_management',
+                'ads_read',
+                // Pages — required for /me/accounts, creatives, lead forms
+                'pages_show_list',
+                'pages_read_engagement',
+                'pages_manage_ads',
+                // Business Manager — required for pixels, WhatsApp, assets
+                'business_management',
+                // Instagram
+                'instagram_basic',
+                // WhatsApp Business
+                'whatsapp_business_management',
+            ],
             state: user.id,
         } as any)(req, res, next);
     } catch {
