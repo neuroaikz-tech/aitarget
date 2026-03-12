@@ -32,7 +32,7 @@ export interface AIAnalysisResult {
 }
 
 export async function analyzeCampaigns(input: CampaignAnalysisInput): Promise<AIAnalysisResult> {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const campaignsData = input.campaigns.map((c: any) => ({
         id: c.id,
