@@ -69,13 +69,32 @@ export class FacebookAdsService {
         return data.data || [];
     }
 
-    // Получить страницы (включая linked WhatsApp и Instagram)
+    // Получить страницы с assets через page access tokens
+    // Facebook не отдаёт whatsapp_number/connected_instagram_account через user token —
+    // нужно запрашивать каждую страницу отдельно через её page access token
     async getPages() {
         const data = await this.get('/me/accounts', {
-            fields: 'id,name,access_token,whatsapp_number,connected_instagram_account{id,name,username}',
+            fields: 'id,name,access_token',
             limit: 25,
         });
-        return data.data || [];
+        const pages: any[] = data.data || [];
+
+        // Обогащаем каждую страницу данными через page token
+        await Promise.allSettled(
+            pages.map(async (page) => {
+                if (!page.access_token) return;
+                try {
+                    const pageService = new FacebookAdsService(page.access_token);
+                    const pageData = await pageService['get'](`/${page.id}`, {
+                        fields: 'whatsapp_number,connected_instagram_account{id,name,username}',
+                    });
+                    if (pageData.whatsapp_number) page.whatsapp_number = pageData.whatsapp_number;
+                    if (pageData.connected_instagram_account) page.connected_instagram_account = pageData.connected_instagram_account;
+                } catch { /* page may not expose these fields */ }
+            })
+        );
+
+        return pages;
     }
 
     // Создать кампанию
