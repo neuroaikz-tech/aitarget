@@ -76,24 +76,6 @@ const DESTINATION_ICONS: Record<FbDestination, string> = {
     APP:              '📲',
 };
 
-const CTA_LABELS: Record<string, string> = {
-    LEARN_MORE:            'Узнать больше',
-    SHOP_NOW:              'Купить',
-    SIGN_UP:               'Зарегистрироваться',
-    DOWNLOAD:              'Скачать',
-    GET_QUOTE:             'Получить предложение',
-    CONTACT_US:            'Связаться с нами',
-    SEND_WHATSAPP_MESSAGE: 'Написать в WhatsApp',
-    SEND_MESSAGE:          'Написать сообщение',
-    SUBSCRIBE:             'Подписаться',
-    APPLY_NOW:             'Подать заявку',
-    BOOK_TRAVEL:           'Забронировать',
-    ORDER_NOW:             'Заказать',
-    GET_OFFER:             'Получить скидку',
-    WATCH_MORE:            'Смотреть',
-    NO_BUTTON:             'Без кнопки',
-};
-
 const OPTIMIZATION_LABELS: Record<string, string> = {
     REACH:                  'Охват',
     IMPRESSIONS:            'Показы',
