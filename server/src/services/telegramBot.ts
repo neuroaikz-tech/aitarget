@@ -32,10 +32,12 @@ export function startBot(token: string) {
         );
     });
 
-    // Кнопка "Отчёт"
-    bot.callbackQuery('report', async (ctx) => {
+    // Кнопка "Отчёт" (может содержать ID аккаунта)
+    bot.callbackQuery(/^report(_act_\d+)?$/, async (ctx) => {
         await ctx.answerCallbackQuery();
-        await handleReport(ctx);
+        const match = ctx.callbackQuery.data.match(/^report_act_(\d+)$/);
+        const accountId = match ? match[1] : undefined;
+        await handleReport(ctx, accountId);
     });
 
     // /report команда
@@ -107,13 +109,19 @@ ${campaignContext}
         }
     });
 
-    bot.start();
+    // Запуск бота с очисткой старых обновлений (исправляет 'terminated by other getUpdates')
+    bot.start({ drop_pending_updates: true });
     console.log('🤖 Telegram бот запущен');
+
+    // Грациозная остановка
+    process.once('SIGINT', () => bot?.stop());
+    process.once('SIGTERM', () => bot?.stop());
+
     return bot;
 }
 
 // Отправить отчёт пользователю
-async function handleReport(ctx: any) {
+async function handleReport(ctx: any, specificAccountId?: string) {
     const telegramId = String(ctx.from.id);
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE telegram_id = ?').get(telegramId) as any;
@@ -136,7 +144,23 @@ async function handleReport(ctx: any) {
             return ctx.reply('❌ Рекламные аккаунты не найдены.');
         }
 
-        const adAccountId = adAccounts[0].id.replace('act_', '');
+        let adAccount = adAccounts[0];
+
+        // Если аккаунтов больше одного и не передан конкретный - просим выбрать
+        if (adAccounts.length > 1 && !specificAccountId) {
+            const kb = new InlineKeyboard();
+            adAccounts.forEach((acc: any) => {
+                const id = acc.id.replace('act_', '');
+                kb.text(acc.name, `report_act_${id}`).row();
+            });
+            return ctx.reply('У тебя несколько рекламных аккаунтов. Выбери из списка:', { reply_markup: kb });
+        }
+
+        if (specificAccountId) {
+            adAccount = adAccounts.find((a: any) => a.id.replace('act_', '') === specificAccountId) || adAccounts[0];
+        }
+
+        const adAccountId = adAccount.id.replace('act_', '');
         const campaigns = await service.getCampaigns(adAccountId);
 
         const insights: any[] = [];
@@ -153,7 +177,7 @@ async function handleReport(ctx: any) {
         const analysis = await analyzeCampaigns({
             campaigns,
             insights,
-            adAccountName: adAccounts[0].name || adAccounts[0].id,
+            adAccountName: adAccount.name || adAccount.id,
             period: 'Последние 7 дней',
         });
 
