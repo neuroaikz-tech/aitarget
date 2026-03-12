@@ -49,6 +49,16 @@ export const adsApi = {
 
     getObjectives: () => api.get('/api/ads/objectives'),
 
+    getPixels: (adAccountId: string) =>
+        api.get(`/api/ads/accounts/${adAccountId}/pixels`),
+
+    getInstagramAccounts: () => api.get('/api/ads/instagram-accounts'),
+
+    getLeadForms: (pageId: string) =>
+        api.get(`/api/ads/pages/${pageId}/lead-forms`),
+
+    getApps: () => api.get('/api/ads/apps'),
+
     getCampaigns: (adAccountId: string) =>
         api.get(`/api/ads/accounts/${adAccountId}/campaigns`),
 

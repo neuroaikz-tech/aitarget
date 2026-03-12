@@ -442,6 +442,77 @@ router.get('/objectives', authenticate, (_req: AuthRequest, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /accounts/:adAccountId/pixels — пиксели аккаунта
+// ─────────────────────────────────────────────────────────────
+router.get('/accounts/:adAccountId/pixels', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+        const pixels = await service.getPixels(req.params.adAccountId);
+        res.json({ pixels });
+    } catch (err: any) {
+        console.error('[GET /pixels]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /instagram-accounts — Instagram аккаунты всех страниц
+// ─────────────────────────────────────────────────────────────
+router.get('/instagram-accounts', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+        const pages = await service.getPages();
+        const igAccounts = await service.getInstagramAccountsForPages(pages);
+        res.json({ instagram_accounts: igAccounts });
+    } catch (err: any) {
+        console.error('[GET /instagram-accounts]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /pages/:pageId/lead-forms — Lead Forms страницы
+// ─────────────────────────────────────────────────────────────
+router.get('/pages/:pageId/lead-forms', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+
+        // Получаем page access token для этой страницы
+        const pages = await service.getPages();
+        const page = pages.find((p: any) => p.id === req.params.pageId);
+        const pageAccessToken = page?.access_token;
+
+        const forms = await service.getLeadForms(req.params.pageId, pageAccessToken);
+        res.json({ lead_forms: forms });
+    } catch (err: any) {
+        console.error('[GET /lead-forms]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
+// GET /apps — приложения пользователя
+// ─────────────────────────────────────────────────────────────
+router.get('/apps', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+        const apps = await service.getApps();
+        res.json({ apps });
+    } catch (err: any) {
+        console.error('[GET /apps]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка Facebook API' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
 

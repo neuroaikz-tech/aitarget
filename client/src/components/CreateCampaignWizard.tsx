@@ -54,6 +54,33 @@ interface FbPage {
     access_token?: string;
 }
 
+interface FbPixel {
+    id: string;
+    name: string;
+    last_fired_time?: string;
+}
+
+interface FbInstagramAccount {
+    pageId: string;
+    pageName: string;
+    igId: string;
+    igName: string;
+    igUsername: string;
+}
+
+interface FbLeadForm {
+    id: string;
+    name: string;
+    status?: string;
+    leads_count?: number;
+}
+
+interface FbApp {
+    id: string;
+    name: string;
+    icon_url?: string;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────
@@ -134,6 +161,13 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     const [pages, setPages] = useState<FbPage[]>([]);
     const [loadingPages, setLoadingPages] = useState(false);
 
+    // FB Assets (loaded from API)
+    const [pixels, setPixels] = useState<FbPixel[]>([]);
+    const [igAccounts, setIgAccounts] = useState<FbInstagramAccount[]>([]);
+    const [leadForms, setLeadForms] = useState<FbLeadForm[]>([]);
+    const [apps, setApps] = useState<FbApp[]>([]);
+    const [loadingAssets, setLoadingAssets] = useState(false);
+
     // ── Step 1: Base settings ─────────────────────────────────
     const [name, setName] = useState('');
     const [objective, setObjective] = useState<FbObjective>('OUTCOME_TRAFFIC');
@@ -189,23 +223,37 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     }, [currentObjConfig, destination]);
 
     // ─────────────────────────────────────────────────────────
-    // Load objectives config + pages on mount
+    // Load objectives config + pages + assets on mount
     // ─────────────────────────────────────────────────────────
 
     useEffect(() => {
         adsApi.getObjectives()
             .then(r => setObjectivesConfig(r.data.objectives))
-            .catch(() => { /* will use null, server-side validation still applies */ });
+            .catch(() => {});
 
         setLoadingPages(true);
         adsApi.getPages()
             .then(r => {
-                setPages(r.data.pages || []);
-                if (r.data.pages?.length === 1) setPageId(r.data.pages[0].id);
+                const loadedPages: FbPage[] = r.data.pages || [];
+                setPages(loadedPages);
+                if (loadedPages.length === 1) setPageId(loadedPages[0].id);
             })
-            .catch(() => { })
+            .catch(() => {})
             .finally(() => setLoadingPages(false));
+
+        setLoadingAssets(true);
+        Promise.allSettled([
+            adsApi.getInstagramAccounts().then(r => setIgAccounts(r.data.instagram_accounts || [])),
+            adsApi.getApps().then(r => setApps(r.data.apps || [])),
+        ]).finally(() => setLoadingAssets(false));
     }, []);
+
+    // When pageId changes → load pixels and lead forms for that page
+    useEffect(() => {
+        if (!pageId || !accountId) return;
+        adsApi.getPixels(accountId).then(r => setPixels(r.data.pixels || [])).catch(() => {});
+        adsApi.getLeadForms(pageId).then(r => setLeadForms(r.data.lead_forms || [])).catch(() => {});
+    }, [pageId, accountId]);
 
     // When objective changes → reset destination to default
     useEffect(() => {
@@ -527,19 +575,34 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 </div>
                             )}
 
-                            {/* Lead Form ID */}
+                            {/* Lead Form */}
                             {destination === 'LEAD_FORM' && (
                                 <div className="form-group">
-                                    <label className="form-label">Lead Form ID *</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="ID формы из Facebook Ads Manager"
-                                        value={leadFormId}
-                                        onChange={(e) => setLeadFormId(e.target.value)}
-                                    />
+                                    <label className="form-label">Форма лидогенерации *</label>
+                                    {leadForms.length > 0 ? (
+                                        <select className="form-select" value={leadFormId} onChange={e => setLeadFormId(e.target.value)}>
+                                            <option value="">— Выберите форму —</option>
+                                            {leadForms.map(f => (
+                                                <option key={f.id} value={f.id}>
+                                                    {f.name}{f.leads_count != null ? ` (${f.leads_count} лидов)` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="ID формы из Facebook Ads Manager"
+                                            value={leadFormId}
+                                            onChange={(e) => setLeadFormId(e.target.value)}
+                                        />
+                                    )}
                                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Создайте форму в Facebook Ads Manager → Библиотека форм, скопируйте ID
+                                        {leadForms.length === 0 && !pageId
+                                            ? 'Сначала выберите страницу — тогда формы подтянутся автоматически'
+                                            : leadForms.length === 0
+                                            ? 'Форм не найдено. Создайте форму в Ads Manager → Библиотека форм'
+                                            : 'Формы загружены из вашей Facebook страницы'}
                                     </span>
                                 </div>
                             )}
@@ -548,8 +611,17 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                             {objective === 'OUTCOME_APP_PROMOTION' && (
                                 <>
                                     <div className="form-group">
-                                        <label className="form-label">App ID * (Facebook App ID)</label>
-                                        <input type="text" className="form-input" placeholder="1234567890" value={appId} onChange={(e) => setAppId(e.target.value)} />
+                                        <label className="form-label">Приложение *</label>
+                                        {apps.length > 0 ? (
+                                            <select className="form-select" value={appId} onChange={e => setAppId(e.target.value)}>
+                                                <option value="">— Выберите приложение —</option>
+                                                {apps.map(a => (
+                                                    <option key={a.id} value={a.id}>{a.name} (ID: {a.id})</option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input type="text" className="form-input" placeholder="Facebook App ID" value={appId} onChange={(e) => setAppId(e.target.value)} />
+                                        )}
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Ссылка на приложение в сторе</label>
@@ -561,16 +633,29 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                             {/* Pixel for Sales */}
                             {objective === 'OUTCOME_SALES' && destination === 'WEBSITE' && (
                                 <div className="form-group">
-                                    <label className="form-label">Pixel ID (рекомендуется для продаж)</label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="Facebook Pixel ID"
-                                        value={pixelId}
-                                        onChange={(e) => setPixelId(e.target.value)}
-                                    />
+                                    <label className="form-label">Пиксель Facebook <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(рекомендуется)</span></label>
+                                    {pixels.length > 0 ? (
+                                        <select className="form-select" value={pixelId} onChange={e => setPixelId(e.target.value)}>
+                                            <option value="">— Без пикселя (клики) —</option>
+                                            {pixels.map(px => (
+                                                <option key={px.id} value={px.id}>
+                                                    {px.name} (ID: {px.id})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Facebook Pixel ID"
+                                            value={pixelId}
+                                            onChange={(e) => setPixelId(e.target.value)}
+                                        />
+                                    )}
                                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Без пикселя оптимизация будет работать по кликам, а не конверсиям
+                                        {pixels.length > 0
+                                            ? 'С пикселем Facebook оптимизирует рекламу под конверсии, а не клики'
+                                            : 'Без пикселя оптимизация будет по кликам. Установите пиксель на сайт для лучших результатов'}
                                     </span>
                                 </div>
                             )}
@@ -602,19 +687,32 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 </span>
                             </div>
 
-                            {/* Instagram Actor ID */}
+                            {/* Instagram Actor */}
                             {(destination === 'INSTAGRAM_DIRECT' || placements.ig_feed || placements.ig_reels) && (
                                 <div className="form-group">
-                                    <label className="form-label">Instagram Business Account ID <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(рекомендуется)</span></label>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        placeholder="ID Instagram аккаунта"
-                                        value={instagramActorId}
-                                        onChange={(e) => setInstagramActorId(e.target.value)}
-                                    />
+                                    <label className="form-label">Instagram аккаунт <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(рекомендуется)</span></label>
+                                    {igAccounts.length > 0 ? (
+                                        <select className="form-select" value={instagramActorId} onChange={e => setInstagramActorId(e.target.value)}>
+                                            <option value="">— Без Instagram аккаунта —</option>
+                                            {igAccounts.map(ig => (
+                                                <option key={ig.igId} value={ig.igId}>
+                                                    {ig.igUsername ? `@${ig.igUsername}` : ig.igName} — страница «{ig.pageName}»
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="ID Instagram Business аккаунта"
+                                            value={instagramActorId}
+                                            onChange={(e) => setInstagramActorId(e.target.value)}
+                                        />
+                                    )}
                                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Если указан — реклама покажется от имени вашего Instagram профиля
+                                        {igAccounts.length > 0
+                                            ? 'Реклама в Instagram будет показана от имени выбранного профиля'
+                                            : 'Привяжите Instagram к Facebook странице — тогда он появится здесь автоматически'}
                                     </span>
                                 </div>
                             )}

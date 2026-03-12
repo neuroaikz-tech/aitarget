@@ -197,4 +197,76 @@ export class FacebookAdsService {
         });
         return data.data || [];
     }
+
+    // Получить пиксели рекламного аккаунта
+    async getPixels(adAccountId: string) {
+        const data = await this.get(`/act_${adAccountId}/adspixels`, {
+            fields: 'id,name,last_fired_time,is_created_by_business',
+            limit: 50,
+        });
+        return data.data || [];
+    }
+
+    // Получить Instagram Business аккаунт, привязанный к Facebook странице
+    async getInstagramAccount(pageId: string) {
+        try {
+            const data = await this.get(`/${pageId}`, {
+                fields: 'instagram_business_account{id,name,username,profile_picture_url}',
+            });
+            return data.instagram_business_account || null;
+        } catch {
+            return null;
+        }
+    }
+
+    // Получить Instagram аккаунты для всех переданных страниц (батч)
+    async getInstagramAccountsForPages(pages: Array<{ id: string; name: string }>) {
+        const results: Array<{ pageId: string; pageName: string; igId: string; igName: string; igUsername: string }> = [];
+        await Promise.allSettled(
+            pages.map(async (page) => {
+                const ig = await this.getInstagramAccount(page.id);
+                if (ig?.id) {
+                    results.push({
+                        pageId: page.id,
+                        pageName: page.name,
+                        igId: ig.id,
+                        igName: ig.name || ig.username || ig.id,
+                        igUsername: ig.username || '',
+                    });
+                }
+            })
+        );
+        return results;
+    }
+
+    // Получить Lead Forms для Facebook страницы
+    async getLeadForms(pageId: string, pageAccessToken?: string) {
+        // Lead forms требуют page access token, а не user token
+        const token = pageAccessToken || this.accessToken;
+        try {
+            const response = await axios.get(`${FB_API_BASE}/${pageId}/leadgen_forms`, {
+                params: {
+                    access_token: token,
+                    fields: 'id,name,status,created_time,leads_count,question_page_custom_headline',
+                    limit: 50,
+                },
+            });
+            return response.data?.data || [];
+        } catch {
+            return [];
+        }
+    }
+
+    // Получить приложения пользователя
+    async getApps() {
+        try {
+            const data = await this.get('/me/applications', {
+                fields: 'id,name,icon_url',
+                limit: 50,
+            });
+            return data.data || [];
+        } catch {
+            return [];
+        }
+    }
 }
