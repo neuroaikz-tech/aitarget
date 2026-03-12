@@ -120,9 +120,18 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             }
             if (publisher_platforms.length === 0) publisher_platforms = ['facebook', 'instagram'];
 
-            const optimizedGoal = objective === 'OUTCOME_TRAFFIC' ? 'LINK_CLICKS' 
-                                : objective === 'OUTCOME_ENGAGEMENT' ? 'POST_ENGAGEMENT'
-                                : 'REACH';
+            let optimizedGoal = 'LINK_CLICKS';
+            if (objective === 'OUTCOME_ENGAGEMENT') {
+                if (destination === 'WHATSAPP' || destination === 'INSTAGRAM_DIRECT') {
+                    optimizedGoal = 'CONVERSATIONS';
+                } else {
+                    optimizedGoal = 'POST_ENGAGEMENT';
+                }
+            } else if (objective === 'OUTCOME_TRAFFIC') {
+                optimizedGoal = 'LINK_CLICKS';
+            } else {
+                optimizedGoal = 'REACH';
+            }
 
             let promotedObject = undefined;
             if (pageId && (objective === 'OUTCOME_ENGAGEMENT' || destination !== 'WEBSITE')) {
