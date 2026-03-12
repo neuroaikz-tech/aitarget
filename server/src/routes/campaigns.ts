@@ -77,13 +77,13 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
         const service = new FacebookAdsService(token);
         
         // 1. Создаем кампанию
+        // CBO (Campaign Budget Optimization) отключен, бюджет задается на уровне AdSet (ABO).
+        // Поэтому мы НЕ передаем daily_budget и lifetime_budget на уровень кампании.
         const campaign = await service.createCampaign(req.params.adAccountId as string, {
             name,
             objective,
             status: status || 'PAUSED',
             special_ad_categories,
-            daily_budget,
-            lifetime_budget,
             start_time,
             stop_time,
         });
