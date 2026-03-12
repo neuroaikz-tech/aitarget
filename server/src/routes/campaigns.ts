@@ -138,6 +138,9 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 daily_budget: daily_budget || 500, // Минимум для FB API ($5)
                 status: 'PAUSED',
                 targeting: JSON.stringify({
+                    geo_locations: {
+                        countries: [targeting?.location || 'KZ']
+                    },
                     age_min: targeting?.ageMin ? parseInt(targeting.ageMin) : 18,
                     age_max: targeting?.ageMax ? parseInt(targeting.ageMax) : 65,
                     ...(targeting?.gender === 'MALE' ? { genders: [1] } : targeting?.gender === 'FEMALE' ? { genders: [2] } : {}),

@@ -34,6 +34,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     const [ageMin, setAgeMin] = useState('18');
     const [ageMax, setAgeMax] = useState('65');
     const [gender, setGender] = useState('ALL'); // ALL, MALE, FEMALE
+    const [location, setLocation] = useState('KZ'); // Новое: локация
     const [placements, setPlacements] = useState({
         fb_feed: true,
         ig_feed: true,
@@ -118,7 +119,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                 daily_budget: budget ? parseInt(budget) * 100 : undefined,
                 special_ad_categories: [],
                 destination,
-                targeting: { ageMin, ageMax, gender },
+                targeting: { ageMin, ageMax, gender, location },
                 placements,
                 image: selectedImage,
                 adText,
@@ -247,6 +248,23 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                         <label className="form-label">Возраст (до)</label>
                                         <input type="number" className="form-input" value={ageMax} onChange={e => setAgeMax(e.target.value)} min="13" max="65" />
                                     </div>
+                                </div>
+                                <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label className="form-label">Страна / Регион</label>
+                                    <select
+                                        className="form-select"
+                                        value={location}
+                                        onChange={(e) => setLocation(e.target.value)}
+                                    >
+                                        <option value="KZ">Казахстан</option>
+                                        <option value="RU">Россия</option>
+                                        <option value="US">США</option>
+                                        <option value="GB">Великобритания</option>
+                                        <option value="DE">Германия</option>
+                                        <option value="TR">Турция</option>
+                                        <option value="UZ">Узбекистан</option>
+                                        <option value="AE">ОАЭ</option>
+                                    </select>
                                 </div>
                                 <div className="form-group" style={{ marginTop: '16px' }}>
                                     <label className="form-label">Пол</label>
@@ -449,7 +467,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                 <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     <li><strong>Название:</strong> {name}</li>
                                     <li><strong>Бюджет:</strong> ${budget || '0'} / день</li>
-                                    <li><strong>Аудитория:</strong> {gender === 'ALL' ? 'Все' : gender === 'MALE' ? 'Мужчины' : 'Женщины'}, {ageMin}-{ageMax} лет</li>
+                                    <li><strong>Аудитория:</strong> {gender === 'ALL' ? 'Все' : gender === 'MALE' ? 'Мужчины' : 'Женщины'}, {ageMin}-{ageMax} лет, {location}</li>
                                     <li><strong>Куда ведем:</strong> {destination === 'WEBSITE' ? 'Сайт' : destination === 'WHATSAPP' ? 'WhatsApp' : destination === 'INSTAGRAM_DIRECT' ? 'Instagram Direct' : 'Куда-то ещё'}</li>
                                     <li><strong>Плейсменты:</strong> {Object.values(placements).filter(Boolean).length} площадок</li>
                                     <li><strong>Креатив:</strong> {creativeMode === 'ai' ? 'Сгенерирован через Gemini' : 'Загружен'}</li>
