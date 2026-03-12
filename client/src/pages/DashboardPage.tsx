@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
             {/* FB Not Connected Banner */}
             {!hasFbConnected && (
-                <div style={{
+                <div className="fb-connect-banner" style={{
                     background: 'rgba(24,119,242,0.08)',
                     border: '1px solid rgba(24,119,242,0.25)',
                     borderRadius: 'var(--radius-lg)',

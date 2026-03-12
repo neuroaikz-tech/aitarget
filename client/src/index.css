@@ -1129,6 +1129,78 @@ input, button, select, textarea {
   .mobile-hide {
     display: none !important;
   }
+
+  /* Адаптивный page-header */
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+  
+  .page-header-actions {
+    width: 100%;
+    justify-content: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  /* Настройки */
+  .settings-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .settings-item .btn {
+    width: 100%;
+  }
+
+  /* Баннер на Dashboard */
+  .fb-connect-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+  
+  .fb-connect-banner .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Модальное окно */
+  .modal-overlay {
+    padding: 12px;
+  }
+  
+  .modal {
+    padding: 20px;
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .modal-actions .btn {
+    width: 100%;
+  }
+
+  /* Аналитика: карточки прогнозов */
+  .ai-action-buttons {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .ai-action-buttons .btn {
+    width: 100%;
+  }
+}
+
+/* ===== Скрываем скроллбар но оставляем прокрутку для таблиц ===== */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ===== MOBILE NAV (Telegram Mini App Style) ===== */

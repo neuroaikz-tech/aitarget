@@ -130,7 +130,7 @@ export default function AIAnalystPage() {
     return (
         <div>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', gap: '16px' }}>
+            <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px', gap: '16px' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
                         <div style={{
@@ -148,7 +148,7 @@ export default function AIAnalystPage() {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="page-header-actions" style={{ display: 'flex', gap: '10px' }}>
                     <button
                         onClick={() => setActiveTab(activeTab === 'settings' ? 'analysis' : 'settings')}
                         className="btn btn-secondary"
@@ -271,7 +271,7 @@ export default function AIAnalystPage() {
                                                     opacity: isIgnored ? 0.5 : 1,
                                                     transition: 'all 0.3s',
                                                 }}>
-                                                    <div style={{ display: 'flex', gap: '14px' }}>
+                                                    <div className="ai-action-buttons" style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
                                                         <div style={{
                                                             width: '36px', height: '36px', borderRadius: '10px',
                                                             background: isApplied ? 'rgba(34,197,94,0.2)' : cfg.bg,

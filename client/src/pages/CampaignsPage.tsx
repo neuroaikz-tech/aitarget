@@ -200,14 +200,14 @@ export default function CampaignsPage() {
     return (
         <div>
             {/* Page Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+            <div className="page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
                 <div>
                     <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '4px' }}>Рекламные кампании</h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
                         Создавайте и управляйте кампаниями Facebook Ads
                     </p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="page-header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => selectedAccount && loadCampaigns(selectedAccount)}
