@@ -138,6 +138,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 bid_strategy: bid_amount ? 'COST_CAP' : 'LOWEST_COST_WITHOUT_CAP',
                 daily_budget: daily_budget || 500, // Минимум для FB API ($5)
                 status: 'PAUSED',
+                destination_type: destination === 'WHATSAPP' ? 'WHATSAPP' : destination === 'INSTAGRAM_DIRECT' ? 'INSTAGRAM_DIRECT' : 'WEBSITE',
                 targeting: JSON.stringify({
                     geo_locations: {
                         countries: [targeting?.location || 'KZ']
@@ -163,14 +164,22 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 const imageHash = uploadedData?.images?.[Object.keys(uploadedData.images)[0]]?.hash;
 
                 if (imageHash) {
+                    let callToActionType = 'LEARN_MORE';
+                    if (destination === 'WHATSAPP') callToActionType = 'SEND_WHATSAPP_MESSAGE';
+                    if (destination === 'INSTAGRAM_DIRECT') callToActionType = 'SEND_MESSAGE';
+
                     const creative = await service.createAdCreative(req.params.adAccountId as string, {
                         name: `${name} - Creative`,
                         object_story_spec: JSON.stringify({
                             page_id: pageId,
                             link_data: {
                                 image_hash: imageHash,
-                                link: destination === 'WHATSAPP' ? 'https://whatsapp.com' : 'https://example.com',
-                                message: adText || 'Новое предложение от нас!'
+                                link: destination === 'WHATSAPP' || destination === 'INSTAGRAM_DIRECT' ? `https://fb.me/` : 'https://example.com',
+                                message: adText || ' ',
+                                call_to_action: {
+                                    type: callToActionType,
+                                    value: destination === 'WEBSITE' ? { link: 'https://example.com' } : {}
+                                }
                             }
                         })
                     });
