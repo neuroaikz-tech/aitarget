@@ -11,6 +11,9 @@ import {
     AlertCircle,
     ExternalLink,
     X,
+    Key,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -22,6 +25,7 @@ interface FbAccount {
     fb_name: string;
     fb_email?: string;
     created_at: string;
+    has_system_token?: number;
 }
 
 export default function SettingsPage() {
@@ -30,6 +34,9 @@ export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [disconnecting, setDisconnecting] = useState<string | null>(null);
     const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null);
+    const [systemTokenInputs, setSystemTokenInputs] = useState<Record<string, string>>({});
+    const [systemTokenExpanded, setSystemTokenExpanded] = useState<Record<string, boolean>>({});
+    const [savingToken, setSavingToken] = useState<string | null>(null);
     const [searchParams] = useSearchParams();
 
     useEffect(() => {
@@ -68,6 +75,36 @@ export default function SettingsPage() {
         // Открываем FB OAuth с токеном в заголовке через cookie/header не работает в redirect
         // Сохраним токен и затем перейдём
         window.location.href = `${API_URL}/auth/facebook?token=${token}`;
+    };
+
+    const handleSaveSystemToken = async (accountId: string) => {
+        const token = systemTokenInputs[accountId]?.trim();
+        if (!token) return;
+        setSavingToken(accountId);
+        try {
+            await authApi.saveSystemUserToken(accountId, token);
+            setFbAccounts(prev => prev.map(a => a.id === accountId ? { ...a, has_system_token: 1 } : a));
+            setSystemTokenExpanded(prev => ({ ...prev, [accountId]: false }));
+            setSystemTokenInputs(prev => ({ ...prev, [accountId]: '' }));
+            toast.success('System User Token сохранён — теперь WhatsApp и Instagram подтягиваются автоматически');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Ошибка сохранения токена');
+        } finally {
+            setSavingToken(null);
+        }
+    };
+
+    const handleRemoveSystemToken = async (accountId: string) => {
+        setSavingToken(accountId);
+        try {
+            await authApi.removeSystemUserToken(accountId);
+            setFbAccounts(prev => prev.map(a => a.id === accountId ? { ...a, has_system_token: 0 } : a));
+            toast.success('System User Token удалён');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Ошибка');
+        } finally {
+            setSavingToken(null);
+        }
     };
 
     const handleDisconnect = async (accountId: string) => {
@@ -189,65 +226,147 @@ export default function SettingsPage() {
                     </div>
                 ) : fbAccounts.length > 0 ? (
                     fbAccounts.map((acc) => (
-                        <div key={acc.id} className="settings-item">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
-                                <div style={{
-                                    width: '44px',
-                                    height: '44px',
-                                    background: 'var(--fb-blue)',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                }}>
-                                    <Facebook size={20} color="white" />
+                        <div key={acc.id}>
+                            <div className="settings-item">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+                                    <div style={{
+                                        width: '44px',
+                                        height: '44px',
+                                        background: 'var(--fb-blue)',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                    }}>
+                                        <Facebook size={20} color="white" />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: '600', marginBottom: '2px' }}>{acc.fb_name}</div>
+                                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                            {acc.fb_email || `ID: ${acc.fb_user_id}`}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                            Подключён: {new Date(acc.created_at).toLocaleDateString('ru-RU')}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div style={{ fontWeight: '600', marginBottom: '2px' }}>{acc.fb_name}</div>
-                                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                        {acc.fb_email || `ID: ${acc.fb_user_id}`}
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                        Подключён: {new Date(acc.created_at).toLocaleDateString('ru-RU')}
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span className="badge badge-active">
-                                    <CheckCircle size={10} />
-                                    Активен
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span className="badge badge-active">
+                                        <CheckCircle size={10} />
+                                        Активен
+                                    </span>
 
-                                {confirmDisconnect === acc.id ? (
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '13px', color: 'var(--red)' }}>Отключить?</span>
-                                        <button
-                                            className="btn btn-sm btn-danger"
-                                            onClick={() => handleDisconnect(acc.id)}
-                                            disabled={disconnecting === acc.id}
-                                        >
-                                            {disconnecting === acc.id ? <span className="loading-spinner" /> : 'Да'}
-                                        </button>
-                                        <button
-                                            className="btn btn-sm btn-secondary"
-                                            onClick={() => setConfirmDisconnect(null)}
-                                        >
-                                            <X size={12} />
-                                        </button>
-                                    </div>
-                                ) : (
                                     <button
                                         className="btn btn-sm btn-secondary"
-                                        onClick={() => setConfirmDisconnect(acc.id)}
-                                        style={{ color: 'var(--red)' }}
+                                        onClick={() => setSystemTokenExpanded(prev => ({ ...prev, [acc.id]: !prev[acc.id] }))}
+                                        style={{ color: acc.has_system_token ? 'var(--green)' : 'var(--text-muted)' }}
+                                        title="System User Token"
                                     >
-                                        <Trash2 size={14} />
-                                        Отключить
+                                        <Key size={14} />
+                                        {acc.has_system_token ? 'System Token ✓' : 'System Token'}
+                                        {systemTokenExpanded[acc.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                     </button>
-                                )}
+
+                                    {confirmDisconnect === acc.id ? (
+                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--red)' }}>Отключить?</span>
+                                            <button
+                                                className="btn btn-sm btn-danger"
+                                                onClick={() => handleDisconnect(acc.id)}
+                                                disabled={disconnecting === acc.id}
+                                            >
+                                                {disconnecting === acc.id ? <span className="loading-spinner" /> : 'Да'}
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-secondary"
+                                                onClick={() => setConfirmDisconnect(null)}
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            className="btn btn-sm btn-secondary"
+                                            onClick={() => setConfirmDisconnect(acc.id)}
+                                            style={{ color: 'var(--red)' }}
+                                        >
+                                            <Trash2 size={14} />
+                                            Отключить
+                                        </button>
+                                    )}
+                                </div>
                             </div>
+
+                            {/* System User Token panel */}
+                            {systemTokenExpanded[acc.id] && (
+                                <div style={{
+                                    margin: '0 24px 16px',
+                                    padding: '16px',
+                                    background: 'rgba(255,255,255,0.03)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)',
+                                }}>
+                                    <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <Key size={14} style={{ color: 'var(--accent-light)' }} />
+                                        System User Token
+                                        {acc.has_system_token ? (
+                                            <span style={{ color: 'var(--green)', fontSize: '12px', fontWeight: 400 }}>— подключён</span>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontWeight: 400 }}>— не подключён</span>
+                                        )}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.6' }}>
+                                        System User Token даёт полный доступ к данным страниц: WhatsApp номера, Instagram аккаунты.
+                                        Создайте системного пользователя в{' '}
+                                        <a
+                                            href="https://business.facebook.com/settings/system-users"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            style={{ color: 'var(--accent-light)' }}
+                                        >
+                                            Meta Business Manager → Системные пользователи
+                                        </a>
+                                        , назначьте ему страницы и рекламные аккаунты, сгенерируйте токен.
+                                    </div>
+
+                                    {acc.has_system_token ? (
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', color: 'var(--green)' }}>
+                                                <CheckCircle size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                                                Токен активен — WhatsApp и Instagram подтягиваются автоматически
+                                            </span>
+                                            <button
+                                                className="btn btn-sm btn-secondary"
+                                                onClick={() => handleRemoveSystemToken(acc.id)}
+                                                disabled={savingToken === acc.id}
+                                                style={{ color: 'var(--red)', marginLeft: 'auto' }}
+                                            >
+                                                {savingToken === acc.id ? <span className="loading-spinner" /> : <><Trash2 size={12} /> Удалить</>}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <input
+                                                type="password"
+                                                className="form-input"
+                                                placeholder="Вставьте System User Token..."
+                                                value={systemTokenInputs[acc.id] || ''}
+                                                onChange={e => setSystemTokenInputs(prev => ({ ...prev, [acc.id]: e.target.value }))}
+                                                style={{ flex: 1, fontSize: '13px' }}
+                                            />
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={() => handleSaveSystemToken(acc.id)}
+                                                disabled={savingToken === acc.id || !systemTokenInputs[acc.id]?.trim()}
+                                            >
+                                                {savingToken === acc.id ? <span className="loading-spinner" /> : 'Сохранить'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))
                 ) : (

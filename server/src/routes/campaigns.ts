@@ -21,9 +21,10 @@ const router = Router();
 function getFbToken(userId: string): string | null {
     const db = getDb();
     const account = db.prepare(
-        'SELECT access_token FROM facebook_accounts WHERE user_id = ? LIMIT 1'
+        'SELECT access_token, system_user_token FROM facebook_accounts WHERE user_id = ? LIMIT 1'
     ).get(userId) as any;
-    return account?.access_token || null;
+    // Приоритет: System User Token (long-lived, full access) > OAuth token
+    return account?.system_user_token || account?.access_token || null;
 }
 
 function requireToken(userId: string, res: Response): string | null {

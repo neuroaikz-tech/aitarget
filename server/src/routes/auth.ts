@@ -284,9 +284,66 @@ router.get('/facebook-accounts', authenticate, (req: AuthRequest, res: Response)
     try {
         const db = getDb();
         const accounts = db
-            .prepare('SELECT id, fb_user_id, fb_name, fb_email, created_at FROM facebook_accounts WHERE user_id = ?')
+            .prepare('SELECT id, fb_user_id, fb_name, fb_email, created_at, CASE WHEN system_user_token IS NOT NULL THEN 1 ELSE 0 END as has_system_token FROM facebook_accounts WHERE user_id = ?')
             .all(req.user.id);
         res.json({ accounts });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Сохранить System User Token для FB аккаунта
+router.post('/facebook-accounts/:accountId/system-token', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const { token } = req.body;
+        if (!token?.trim()) {
+            return res.status(400).json({ error: 'Токен не может быть пустым' });
+        }
+
+        // Проверяем токен через FB API
+        const axios = (await import('axios')).default;
+        let tokenInfo: any;
+        try {
+            const r = await axios.get('https://graph.facebook.com/v19.0/me', {
+                params: { access_token: token.trim(), fields: 'id,name' },
+            });
+            tokenInfo = r.data;
+        } catch {
+            return res.status(400).json({ error: 'Токен недействителен — Facebook API вернул ошибку' });
+        }
+
+        const db = getDb();
+        const account = db
+            .prepare('SELECT id FROM facebook_accounts WHERE id = ? AND user_id = ?')
+            .get(req.params.accountId, req.user.id);
+        if (!account) {
+            return res.status(404).json({ error: 'FB аккаунт не найден' });
+        }
+
+        db.prepare('UPDATE facebook_accounts SET system_user_token = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?')
+            .run(token.trim(), req.params.accountId, req.user.id);
+
+        res.json({ ok: true, token_owner: tokenInfo });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Удалить System User Token
+router.delete('/facebook-accounts/:accountId/system-token', authenticate, (req: AuthRequest, res: Response) => {
+    try {
+        const db = getDb();
+        const account = db
+            .prepare('SELECT id FROM facebook_accounts WHERE id = ? AND user_id = ?')
+            .get(req.params.accountId, req.user.id);
+        if (!account) {
+            return res.status(404).json({ error: 'FB аккаунт не найден' });
+        }
+        db.prepare('UPDATE facebook_accounts SET system_user_token = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?')
+            .run(req.params.accountId, req.user.id);
+        res.json({ ok: true });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Ошибка сервера' });

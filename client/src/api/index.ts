@@ -36,6 +36,12 @@ export const authApi = {
     disconnectFacebook: (fbAccountId: string) =>
         api.delete(`/auth/facebook/${fbAccountId}`),
 
+    saveSystemUserToken: (fbAccountId: string, token: string) =>
+        api.post(`/auth/facebook-accounts/${fbAccountId}/system-token`, { token }),
+
+    removeSystemUserToken: (fbAccountId: string) =>
+        api.delete(`/auth/facebook-accounts/${fbAccountId}/system-token`),
+
     connectFacebook: () => {
         window.location.href = `${API_URL}/auth/facebook`;
     },

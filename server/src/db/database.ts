@@ -104,6 +104,9 @@ function initializeSchema() {
   try {
     db.exec(`ALTER TABLE users ADD COLUMN telegram_id TEXT UNIQUE`);
   } catch { /* колонка уже существует */ }
+  try {
+    db.exec(`ALTER TABLE facebook_accounts ADD COLUMN system_user_token TEXT`);
+  } catch { /* колонка уже существует */ }
 }
 
 export default getDb;
