@@ -69,9 +69,10 @@ export class FacebookAdsService {
         return data.data || [];
     }
 
-    // Получить страницы с assets через page access tokens
-    // Facebook не отдаёт whatsapp_number/connected_instagram_account через user token —
-    // нужно запрашивать каждую страницу отдельно через её page access token
+    // Получить страницы с assets
+    // - OAuth token: страницы через /me/accounts + обогащение через page access token
+    // - System User Token: страницы через /me/accounts, но page token недоступен —
+    //   используем system token напрямую для запроса полей страницы
     async getPages() {
         const data = await this.get('/me/accounts', {
             fields: 'id,name,access_token',
@@ -79,17 +80,17 @@ export class FacebookAdsService {
         });
         const pages: any[] = data.data || [];
 
-        // Обогащаем каждую страницу данными через page token
+        // Обогащаем каждую страницу данными
         await Promise.allSettled(
             pages.map(async (page) => {
-                if (!page.access_token) return;
+                // Используем page access token если есть, иначе system user token (this.accessToken)
+                const tokenToUse = page.access_token || this.accessToken;
                 try {
-                    const pageService = new FacebookAdsService(page.access_token);
+                    const pageService = new FacebookAdsService(tokenToUse);
                     const pageData = await pageService['get'](`/${page.id}`, {
                         fields: 'whatsapp_number,connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
                     });
                     if (pageData.whatsapp_number) page.whatsapp_number = pageData.whatsapp_number;
-                    // Prefer connected_instagram_account, fallback to instagram_business_account
                     const ig = pageData.connected_instagram_account || pageData.instagram_business_account;
                     if (ig) page.connected_instagram_account = ig;
                 } catch { /* page may not expose these fields */ }
@@ -239,10 +240,11 @@ export class FacebookAdsService {
                 // Сначала пробуем данные из уже загруженной страницы
                 let ig = page.connected_instagram_account || null;
 
-                // Если нет — запрашиваем через page access token (более широкий доступ)
-                if (!ig?.id && page.access_token) {
+                // Если нет — запрашиваем через page/system token
+                if (!ig?.id) {
+                    const tokenToUse = page.access_token || this.accessToken;
                     try {
-                        const pageService = new FacebookAdsService(page.access_token);
+                        const pageService = new FacebookAdsService(tokenToUse);
                         const data = await pageService['get'](`/${page.id}`, {
                             fields: 'connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
                         });
@@ -251,9 +253,10 @@ export class FacebookAdsService {
                 }
 
                 // Fallback: edge /{page-id}/instagram_accounts
-                if (!ig?.id && page.access_token) {
+                if (!ig?.id) {
+                    const tokenToUse = page.access_token || this.accessToken;
                     try {
-                        const pageService = new FacebookAdsService(page.access_token);
+                        const pageService = new FacebookAdsService(tokenToUse);
                         const data = await pageService['get'](`/${page.id}/instagram_accounts`, {
                             fields: 'id,name,username,profile_pic',
                         });
@@ -316,13 +319,14 @@ export class FacebookAdsService {
             }
         }
 
-        // Источник 2: запрос через page token — иногда whatsapp_number доступен только так
+        // Источник 2: запрос через page/system token
         await Promise.allSettled(
             pageList
-                .filter((p: any) => !p.whatsapp_number && p.access_token)
+                .filter((p: any) => !p.whatsapp_number)
                 .map(async (page: any) => {
+                    const tokenToUse = page.access_token || this.accessToken;
                     try {
-                        const pageService = new FacebookAdsService(page.access_token);
+                        const pageService = new FacebookAdsService(tokenToUse);
                         const data = await pageService['get'](`/${page.id}`, {
                             fields: 'whatsapp_number',
                         });
