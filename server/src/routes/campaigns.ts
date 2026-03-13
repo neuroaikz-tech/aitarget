@@ -301,7 +301,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             const hasInstagramPlacement =
                 placements?.ig_feed || placements?.ig_reels || destConfig.requires_instagram_actor;
             if (hasInstagramPlacement && instagramActorId) {
-                objectStorySpec.instagram_actor_id = instagramActorId;
+                objectStorySpec.instagram_user_id = instagramActorId;
             }
 
             const creative = await service.createAdCreative(adAccountId, {
