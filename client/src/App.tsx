@@ -11,6 +11,9 @@ import DashboardPage from './pages/DashboardPage';
 import CampaignsPage from './pages/CampaignsPage';
 import SettingsPage from './pages/SettingsPage';
 import AIAnalystPage from './pages/AIAnalystPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import DataDeletionPage from './pages/DataDeletionPage';
 
 export default function App() {
   const { fetchMe, token } = useAuthStore();
@@ -73,6 +76,9 @@ export default function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
+        <Route path="/data-deletion" element={<DataDeletionPage />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
