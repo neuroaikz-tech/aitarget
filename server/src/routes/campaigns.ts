@@ -562,6 +562,36 @@ router.get('/instagram-accounts', authenticate, async (req: AuthRequest, res: Re
 });
 
 // ─────────────────────────────────────────────────────────────
+// GET /debug/instagram-actors — Instagram Actors рекламного аккаунта
+// ─────────────────────────────────────────────────────────────
+router.get('/debug/instagram-actors', authenticate, async (req: AuthRequest, res: Response) => {
+    try {
+        const token = requireToken(req.user.id, res);
+        if (!token) return;
+        const service = new FacebookAdsService(token);
+        // Получаем рекламные аккаунты
+        const adAccounts = await service.getAdAccounts();
+        const results: any[] = [];
+        for (const acc of adAccounts.slice(0, 3)) {
+            const [actors, igUsers] = await Promise.allSettled([
+                service['get'](`/act_${acc.fb_account_id}/instagram_actors`, { fields: 'id,name,username,profile_pic' }),
+                service['get'](`/act_${acc.fb_account_id}/instagram_user`, { fields: 'id,name,username' }),
+            ]);
+            results.push({
+                ad_account_id: acc.fb_account_id,
+                ad_account_name: acc.name,
+                instagram_actors: actors.status === 'fulfilled' ? actors.value : { error: (actors as any).reason?.response?.data || (actors as any).reason?.message },
+                instagram_user: igUsers.status === 'fulfilled' ? igUsers.value : { error: (igUsers as any).reason?.response?.data || (igUsers as any).reason?.message },
+            });
+        }
+        res.json({ results });
+    } catch (err: any) {
+        console.error('[GET /debug/instagram-actors]', err?.response?.data || err.message);
+        res.status(500).json({ error: err?.response?.data?.error?.message || 'Ошибка' });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────
 // GET /pages/:pageId/lead-forms — Lead Forms страницы
 // ─────────────────────────────────────────────────────────────
 router.get('/pages/:pageId/lead-forms', authenticate, async (req: AuthRequest, res: Response) => {
