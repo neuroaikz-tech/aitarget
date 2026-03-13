@@ -467,23 +467,26 @@ router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response)
             for (const page of (pagesRawData.value.data || []).slice(0, 3)) {
                 const pagesFullValue = pagesFullData.status === 'fulfilled' ? pagesFullData.value.data : [];
                 const fullPage = pagesFullValue?.find((p: any) => p.id === page.id);
-                const pageToken = fullPage?.access_token;
-                if (!pageToken) {
-                    pageTokenResults.push({ page_id: page.id, page_name: page.name, error: 'no page token' });
-                    continue;
-                }
+                // Используем page token если есть, иначе system user token
+                const pageToken = fullPage?.access_token || token;
                 const pageService = new FacebookAdsService(pageToken);
-                const [pageFields, igEdge] = await Promise.allSettled([
+                const [pageFields, igEdge, igEdgeSystemToken] = await Promise.allSettled([
                     pageService['get'](`/${page.id}`, {
                         fields: 'whatsapp_number,has_whatsapp_number,has_whatsapp_business_number,connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
                     }),
                     pageService['get'](`/${page.id}/instagram_accounts`, { fields: 'id,name,username', limit: 5 }),
+                    // Также пробуем напрямую через system token (не page token)
+                    service['get'](`/${page.id}`, {
+                        fields: 'connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
+                    }),
                 ]);
                 pageTokenResults.push({
                     page_id: page.id,
                     page_name: page.name,
+                    token_used: fullPage?.access_token ? 'page_token' : 'system_token',
                     page_fields: pageFields.status === 'fulfilled' ? pageFields.value : { error: (pageFields as any).reason?.response?.data || (pageFields as any).reason?.message },
                     instagram_accounts_edge: igEdge.status === 'fulfilled' ? igEdge.value : { error: (igEdge as any).reason?.response?.data || (igEdge as any).reason?.message },
+                    page_fields_via_system_token: igEdgeSystemToken.status === 'fulfilled' ? igEdgeSystemToken.value : { error: (igEdgeSystemToken as any).reason?.response?.data || (igEdgeSystemToken as any).reason?.message },
                 });
             }
         }
