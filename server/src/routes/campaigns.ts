@@ -453,14 +453,39 @@ router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response)
         const [permissionsData, meData, pagesRawData, pagesFullData] = await Promise.allSettled([
             service['get']('/me/permissions'),
             service['get']('/me', { fields: 'id,name,email' }),
-            // Базовый запрос страниц
             service['get']('/me/accounts', { fields: 'id,name', limit: 5 }),
-            // Полный запрос с нужными полями
             service['get']('/me/accounts', {
-                fields: 'id,name,whatsapp_number,connected_instagram_account{id,name,username}',
+                fields: 'id,name,access_token,whatsapp_number,connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
                 limit: 5,
             }),
         ]);
+
+        // Per-page diagnostics via page access token
+        const pageTokenResults: any[] = [];
+        if (pagesRawData.status === 'fulfilled') {
+            for (const page of (pagesRawData.value.data || []).slice(0, 3)) {
+                const pagesFullValue = pagesFullData.status === 'fulfilled' ? pagesFullData.value.data : [];
+                const fullPage = pagesFullValue?.find((p: any) => p.id === page.id);
+                const pageToken = fullPage?.access_token;
+                if (!pageToken) {
+                    pageTokenResults.push({ page_id: page.id, page_name: page.name, error: 'no page token' });
+                    continue;
+                }
+                const pageService = new FacebookAdsService(pageToken);
+                const [pageFields, igEdge] = await Promise.allSettled([
+                    pageService['get'](`/${page.id}`, {
+                        fields: 'whatsapp_number,has_whatsapp_number,has_whatsapp_business_number,connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
+                    }),
+                    pageService['get'](`/${page.id}/instagram_accounts`, { fields: 'id,name,username', limit: 5 }),
+                ]);
+                pageTokenResults.push({
+                    page_id: page.id,
+                    page_name: page.name,
+                    page_fields: pageFields.status === 'fulfilled' ? pageFields.value : { error: (pageFields as any).reason?.response?.data || (pageFields as any).reason?.message },
+                    instagram_accounts_edge: igEdge.status === 'fulfilled' ? igEdge.value : { error: (igEdge as any).reason?.response?.data || (igEdge as any).reason?.message },
+                });
+            }
+        }
 
         res.json({
             me: meData.status === 'fulfilled' ? meData.value : { error: (meData as any).reason?.message },
@@ -470,9 +495,10 @@ router.get('/debug/token', authenticate, async (req: AuthRequest, res: Response)
             pages_basic: pagesRawData.status === 'fulfilled'
                 ? pagesRawData.value.data
                 : { error: (pagesRawData as any).reason?.message },
-            pages_with_assets: pagesFullData.status === 'fulfilled'
+            pages_with_assets_via_user_token: pagesFullData.status === 'fulfilled'
                 ? pagesFullData.value.data
                 : { error: (pagesFullData as any).reason?.message },
+            pages_via_page_token: pageTokenResults,
         });
     } catch (err: any) {
         res.status(500).json({ error: err.message });

@@ -248,6 +248,19 @@ export class FacebookAdsService {
                     } catch { }
                 }
 
+                // Fallback: edge /{page-id}/instagram_accounts
+                if (!ig?.id && page.access_token) {
+                    try {
+                        const pageService = new FacebookAdsService(page.access_token);
+                        const data = await pageService['get'](`/${page.id}/instagram_accounts`, {
+                            fields: 'id,name,username',
+                        });
+                        if (data.data?.length > 0) {
+                            ig = data.data[0];
+                        }
+                    } catch { }
+                }
+
                 if (ig?.id) {
                     results.push({
                         pageId: page.id,
