@@ -133,27 +133,29 @@ export class FacebookAdsService {
 
     // Загрузить изображение (поддержка Base64)
     async uploadImage(adAccountId: string, base64Data: string) {
-        // Убираем префикс data:image/jpeg;base64,
         const b64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
         const buffer = Buffer.from(b64, 'base64');
-        
+
+        // Используем form-data напрямую через axios с правильными заголовками
         const form = new FormData();
         form.append('access_token', this.accessToken);
-        form.append('filename', {
-            value: buffer,
-            options: {
-                filename: 'creative.jpg',
-                contentType: 'image/jpeg',
-            }
-        } as any);
+        form.append('bytes', b64);
+        form.append('name', 'creative.jpg');
 
-        const response = await axios.post(`${FB_API_BASE}/act_${adAccountId}/adimages`, form, {
-            headers: {
-                ...form.getHeaders()
-            }
-        });
-        
-        return response.data; // { images: { 'creative.jpg': { hash: '...', url: '...' } } }
+        const response = await axios.post(
+            `${FB_API_BASE}/act_${adAccountId}/adimages`,
+            form,
+            { headers: form.getHeaders() }
+        );
+
+        // FB возвращает { images: { 'creative.jpg': { hash, url } } }
+        // или { images: { hash, url } } при bytes upload
+        const images = response.data?.images;
+        if (!images) throw new Error('FB не вернул данные изображения');
+
+        // bytes upload возвращает массив
+        const first = Array.isArray(images) ? images[0] : Object.values(images)[0];
+        return { images: { 'creative.jpg': first } };
     }
 
     // Создать креатив (Ad Creative)

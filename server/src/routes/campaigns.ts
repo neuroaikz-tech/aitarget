@@ -266,7 +266,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
 
             // Upload image
             const uploadedData = await service.uploadImage(adAccountId, image);
-            const imageHash = uploadedData?.images?.[Object.keys(uploadedData.images)[0]]?.hash;
+            const imageHash = uploadedData?.images?.['creative.jpg']?.hash;
 
             if (!imageHash) {
                 return res.status(500).json({
