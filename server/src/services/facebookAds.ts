@@ -86,10 +86,12 @@ export class FacebookAdsService {
                 try {
                     const pageService = new FacebookAdsService(page.access_token);
                     const pageData = await pageService['get'](`/${page.id}`, {
-                        fields: 'whatsapp_number,connected_instagram_account{id,name,username}',
+                        fields: 'whatsapp_number,connected_instagram_account{id,name,username},instagram_business_account{id,name,username}',
                     });
                     if (pageData.whatsapp_number) page.whatsapp_number = pageData.whatsapp_number;
-                    if (pageData.connected_instagram_account) page.connected_instagram_account = pageData.connected_instagram_account;
+                    // Prefer connected_instagram_account, fallback to instagram_business_account
+                    const ig = pageData.connected_instagram_account || pageData.instagram_business_account;
+                    if (ig) page.connected_instagram_account = ig;
                 } catch { /* page may not expose these fields */ }
             })
         );
@@ -230,7 +232,7 @@ export class FacebookAdsService {
     // Данные уже есть в getPages() через connected_instagram_account,
     // но делаем fallback запрос через page token если поле пустое
     async getInstagramAccountsForPages(pages: Array<{ id: string; name: string; access_token?: string; connected_instagram_account?: any }>) {
-        const results: Array<{ pageId: string; pageName: string; igId: string; igName: string; igUsername: string }> = [];
+        const results: Array<{ pageId: string; pageName: string; igId: string; igName: string; igUsername: string; igProfilePic?: string }> = [];
 
         await Promise.allSettled(
             pages.map(async (page) => {
@@ -253,7 +255,7 @@ export class FacebookAdsService {
                     try {
                         const pageService = new FacebookAdsService(page.access_token);
                         const data = await pageService['get'](`/${page.id}/instagram_accounts`, {
-                            fields: 'id,name,username',
+                            fields: 'id,name,username,profile_pic',
                         });
                         if (data.data?.length > 0) {
                             ig = data.data[0];
@@ -268,6 +270,7 @@ export class FacebookAdsService {
                         igId: ig.id,
                         igName: ig.name || ig.username || ig.id,
                         igUsername: ig.username || '',
+                        igProfilePic: ig.profile_pic,
                     });
                 }
             })

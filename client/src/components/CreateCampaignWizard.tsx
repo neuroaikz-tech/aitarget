@@ -66,6 +66,7 @@ interface FbInstagramAccount {
     igId: string;
     igName: string;
     igUsername: string;
+    igProfilePic?: string;
 }
 
 interface FbLeadForm {
