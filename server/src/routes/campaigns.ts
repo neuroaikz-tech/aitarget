@@ -189,6 +189,11 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             if (publisher_platforms.length === 0) {
                 publisher_platforms.push('facebook', 'instagram');
             }
+            // Facebook требует хотя бы один Facebook плейсмент при наличии page_id в креативе
+            if (!publisher_platforms.includes('facebook')) {
+                publisher_platforms.push('facebook');
+                facebook_positions.push('feed');
+            }
 
             // Optimization goal: use override if provided & valid, else default from config
             let optimizationGoal = destConfig.default_optimization_goal;
