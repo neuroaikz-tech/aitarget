@@ -10,6 +10,7 @@ import {
     buildDestinationLink,
     resolveDestinationConfig,
     resolveBidStrategy,
+    buildMessagingDestinationType,
 } from '../config/fbAdsConfig';
 
 const router = Router();
@@ -113,6 +114,8 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             whatsappPhone,
             // Lead form
             leadFormId,
+            // Multi-messaging destinations (e.g. ['WHATSAPP', 'INSTAGRAM_DIRECT'])
+            messagingDestinations,
             // Advanced
             optimization_goal_override, // allow power users to override
         } = req.body;
@@ -137,7 +140,9 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
         if (destConfig.requires_website_url && !websiteUrl?.trim()) {
             return res.status(400).json({ error: 'Для этой цели и места назначения укажите URL сайта' });
         }
-        if (destConfig.requires_whatsapp_phone && !whatsappPhone?.trim()) {
+        const needsWhatsApp = destConfig.requires_whatsapp_phone
+            || (Array.isArray(messagingDestinations) && messagingDestinations.includes('WHATSAPP'));
+        if (needsWhatsApp && !whatsappPhone?.trim()) {
             return res.status(400).json({ error: 'Для WhatsApp укажите номер телефона (с кодом страны)' });
         }
         if (resolvedDest === 'LEAD_FORM' && !leadFormId) {
@@ -224,7 +229,9 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 bid_strategy: bidStrategy,
                 daily_budget: daily_budget || 500, // cents, minimum ~$5
                 status: 'PAUSED',
-                destination_type: destConfig.destination_type,
+                destination_type: (Array.isArray(messagingDestinations) && messagingDestinations.length > 1)
+                    ? buildMessagingDestinationType(messagingDestinations)
+                    : destConfig.destination_type,
                 targeting: JSON.stringify({
                     geo_locations: {
                         countries: [targeting?.location || 'KZ'],
@@ -282,8 +289,13 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             }
 
             // Resolve call-to-action
-            const ctaType = destConfig.default_call_to_action;
-            const destinationLink = buildDestinationLink(resolvedDest, websiteUrl, whatsappPhone);
+            const isMultiMessaging = Array.isArray(messagingDestinations) && messagingDestinations.length > 1;
+            const ctaType = isMultiMessaging ? 'MESSAGE_PAGE' : destConfig.default_call_to_action;
+            // For multi-messaging use WhatsApp link if WhatsApp is in selection, else fallback
+            const primaryDest = isMultiMessaging
+                ? (messagingDestinations.includes('WHATSAPP') ? 'WHATSAPP' : resolvedDest)
+                : resolvedDest;
+            const destinationLink = buildDestinationLink(primaryDest as FbDestination, websiteUrl, whatsappPhone);
 
             // Build call_to_action value based on destination
             const ctaValue = buildCtaValue(resolvedDest, destinationLink, leadFormId, appStoreUrl);

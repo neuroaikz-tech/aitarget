@@ -179,6 +179,8 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     const [name, setName] = useState('');
     const [objective, setObjective] = useState<FbObjective>('OUTCOME_TRAFFIC');
     const [destination, setDestination] = useState<FbDestination>('WEBSITE');
+    // Multi-select для мессенджер-назначений
+    const [messagingDestinations, setMessagingDestinations] = useState<Set<FbDestination>>(new Set(['WHATSAPP']));
     const [budget, setBudget] = useState('');
     const [bidAmount, setBidAmount] = useState('');
 
@@ -288,7 +290,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
         if (currentDestConfig?.requires_website_url && !websiteUrl.trim()) {
             return 'Укажите URL сайта (например: https://mysite.com)';
         }
-        if (currentDestConfig?.requires_whatsapp_phone && !whatsappPhone.trim()) {
+        if ((currentDestConfig?.requires_whatsapp_phone || messagingDestinations.has('WHATSAPP')) && isMessagingSelected && !whatsappPhone.trim()) {
             return 'Укажите номер телефона WhatsApp (с кодом страны, например: +77001234567)';
         }
         if (destination === 'LEAD_FORM' && !leadFormId.trim()) {
@@ -368,6 +370,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                 name: name.trim(),
                 objective,
                 destination,
+                messagingDestinations: isMessagingSelected ? Array.from(messagingDestinations) : undefined,
                 daily_budget: budget ? Math.round(parseFloat(budget) * 100) : undefined,
                 bid_amount: bidAmount ? Math.round(parseFloat(bidAmount) * 100) : undefined,
                 // Assets
@@ -424,6 +427,27 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
     }
 
     const availableDestinations = currentObjConfig?.destinations ?? ['WEBSITE'];
+
+    const MESSAGING_DESTS: FbDestination[] = ['WHATSAPP', 'INSTAGRAM_DIRECT', 'MESSENGER'];
+    const isMessagingDest = (d: FbDestination) => MESSAGING_DESTS.includes(d);
+    const hasMessagingOption = availableDestinations.some(isMessagingDest);
+    const isMessagingSelected = isMessagingDest(destination);
+
+    function toggleMessagingDest(d: FbDestination) {
+        setMessagingDestinations(prev => {
+            const next = new Set(prev);
+            if (next.has(d)) {
+                if (next.size === 1) return next; // минимум одно выбрано
+                next.delete(d);
+            } else {
+                next.add(d);
+            }
+            // primary destination = первый выбранный из messaging
+            const first = MESSAGING_DESTS.find(m => next.has(m));
+            if (first) setDestination(first);
+            return next;
+        });
+    }
 
     // ─────────────────────────────────────────────────────────
     // Render
@@ -526,7 +550,8 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                             <div className="form-group">
                                 <label className="form-label">Место назначения *</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {availableDestinations.map((dest) => (
+                                    {/* Не-мессенджер назначения — одиночный выбор */}
+                                    {availableDestinations.filter(d => !isMessagingDest(d)).map((dest) => (
                                         <button
                                             key={dest}
                                             type="button"
@@ -546,7 +571,65 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                             {getDestLabel(dest)}
                                         </button>
                                     ))}
+                                    {/* Мессенджер-назначения — кнопка-переключатель */}
+                                    {hasMessagingOption && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!isMessagingSelected) {
+                                                    const firstMsg = availableDestinations.find(isMessagingDest)!;
+                                                    setDestination(firstMsg);
+                                                    setMessagingDestinations(new Set([firstMsg]));
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '8px 14px',
+                                                borderRadius: '8px',
+                                                border: `2px solid ${isMessagingSelected ? 'var(--accent-light)' : 'var(--border)'}`,
+                                                background: isMessagingSelected ? 'rgba(79,110,247,0.1)' : 'var(--bg-secondary)',
+                                                color: isMessagingSelected ? 'var(--accent-light)' : 'var(--text-primary)',
+                                                cursor: 'pointer',
+                                                fontSize: '13px',
+                                                fontWeight: '600',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            💬 Мессенджеры
+                                        </button>
+                                    )}
                                 </div>
+
+                                {/* Чекбоксы мессенджеров */}
+                                {isMessagingSelected && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '10px' }}>
+                                        {availableDestinations.filter(isMessagingDest).map((d) => (
+                                            <label
+                                                key={d}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '7px',
+                                                    padding: '7px 12px',
+                                                    borderRadius: '8px',
+                                                    border: `2px solid ${messagingDestinations.has(d) ? 'var(--accent-light)' : 'var(--border)'}`,
+                                                    background: messagingDestinations.has(d) ? 'rgba(79,110,247,0.1)' : 'var(--bg-secondary)',
+                                                    cursor: 'pointer',
+                                                    fontSize: '13px',
+                                                    fontWeight: '600',
+                                                    userSelect: 'none',
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={messagingDestinations.has(d)}
+                                                    onChange={() => toggleMessagingDest(d)}
+                                                    style={{ accentColor: 'var(--accent-light)' }}
+                                                />
+                                                {getDestLabel(d)}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* ── Destination-specific fields ── */}
@@ -566,7 +649,7 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                             )}
 
                             {/* WhatsApp */}
-                            {currentDestConfig?.requires_whatsapp_phone && (
+                            {(currentDestConfig?.requires_whatsapp_phone || messagingDestinations.has('WHATSAPP')) && isMessagingSelected && (
                                 <div className="form-group">
                                     <label className="form-label">WhatsApp номер *</label>
                                     {waAccounts.length > 0 ? (
@@ -1021,7 +1104,9 @@ export default function CreateCampaignWizard({ accountId, onClose, onSuccess }: 
                                     {[
                                         ['Название', name],
                                         ['Цель', objectivesConfig?.[objective]?.label ?? objective],
-                                        ['Назначение', getDestLabel(destination)],
+                                        ['Назначение', isMessagingSelected && messagingDestinations.size > 1
+                                            ? Array.from(messagingDestinations).map(getDestLabel).join(' + ')
+                                            : getDestLabel(destination)],
                                         ['Оптимизация', OPTIMIZATION_LABELS[optimizationGoal || currentDestConfig?.default_optimization_goal || ''] ?? optimizationGoal],
                                         ['Страница', pages.find(p => p.id === pageId)?.name ?? pageId],
                                         websiteUrl && ['Сайт', websiteUrl],

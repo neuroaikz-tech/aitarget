@@ -461,6 +461,31 @@ export function resolveDestinationConfig(
 }
 
 /**
+ * Build combined messaging destination_type from multiple selections.
+ * Facebook supports compound values like MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP
+ */
+export function buildMessagingDestinationType(platforms: string[]): string {
+    const has = (p: string) => platforms.includes(p);
+    if (has('WHATSAPP') && has('INSTAGRAM_DIRECT') && has('MESSENGER')) {
+        return 'MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP';
+    }
+    if (has('WHATSAPP') && has('INSTAGRAM_DIRECT')) {
+        return 'MESSAGING_INSTAGRAM_DIRECT_WHATSAPP';
+    }
+    if (has('WHATSAPP') && has('MESSENGER')) {
+        return 'MESSAGING_MESSENGER_WHATSAPP';
+    }
+    if (has('INSTAGRAM_DIRECT') && has('MESSENGER')) {
+        return 'MESSAGING_INSTAGRAM_DIRECT_MESSENGER';
+    }
+    // Single platform — return as-is
+    if (has('WHATSAPP')) return 'WHATSAPP';
+    if (has('INSTAGRAM_DIRECT')) return 'INSTAGRAM_DIRECT';
+    if (has('MESSENGER')) return 'MESSENGER';
+    return 'WHATSAPP';
+}
+
+/**
  * Determine the bid strategy.
  * COST_CAP is not allowed for CONVERSATIONS optimization goal.
  */
