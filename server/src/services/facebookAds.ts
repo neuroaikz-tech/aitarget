@@ -343,7 +343,35 @@ export class FacebookAdsService {
                 })
         );
 
-        // Источник 3: WABA через Business Manager (для крупных аккаунтов с WABA API)
+        // Источник 3: /me/whatsapp_business_accounts напрямую
+        try {
+            const directWaba = await this.get('/me/whatsapp_business_accounts', { fields: 'id,name', limit: 25 });
+            await Promise.allSettled(
+                (directWaba.data || []).map(async (waba: any) => {
+                    try {
+                        const phonesData = await this.get(`/${waba.id}/phone_numbers`, {
+                            fields: 'id,display_phone_number,verified_name',
+                            limit: 50,
+                        });
+                        for (const phone of (phonesData.data || [])) {
+                            if (!results.find(r => r.display_phone_number === phone.display_phone_number)) {
+                                results.push({
+                                    id: phone.id,
+                                    display_phone_number: phone.display_phone_number,
+                                    verified_name: phone.verified_name || waba.name,
+                                });
+                            }
+                        }
+                    } catch (e: any) {
+                        console.error('[WhatsApp] phone_numbers error:', e?.response?.data || e?.message);
+                    }
+                })
+            );
+        } catch (e: any) {
+            console.error('[WhatsApp] /me/whatsapp_business_accounts error:', e?.response?.data || e?.message);
+        }
+
+        // Источник 4: WABA через Business Manager
         try {
             const bizData = await this.get('/me/businesses', { fields: 'id,name', limit: 10 });
             await Promise.allSettled(
@@ -366,13 +394,19 @@ export class FacebookAdsService {
                                             });
                                         }
                                     }
-                                } catch { }
+                                } catch (e: any) {
+                                    console.error('[WhatsApp] WABA phone_numbers error:', e?.response?.data || e?.message);
+                                }
                             })
                         );
-                    } catch { }
+                    } catch (e: any) {
+                        console.error('[WhatsApp] biz WABA error:', e?.response?.data || e?.message);
+                    }
                 })
             );
-        } catch { }
+        } catch (e: any) {
+            console.error('[WhatsApp] /me/businesses error:', e?.response?.data || e?.message);
+        }
 
         return results;
     }
