@@ -330,10 +330,9 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             const isMessagingType = ['WHATSAPP', 'INSTAGRAM_DIRECT', 'MESSENGER'].includes(resolvedDest)
                 || isMultiMessaging;
             if (isMessagingType) {
+                // standard_enhancements deprecated in API v22 — send empty spec
                 creativeParams.degrees_of_freedom_spec = {
-                    creative_features_spec: {
-                        standard_enhancements: { enroll_status: 'OPT_IN' },
-                    },
+                    creative_features_spec: {},
                 };
             }
 
