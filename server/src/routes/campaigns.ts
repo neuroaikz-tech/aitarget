@@ -321,10 +321,21 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 objectStorySpec.instagram_user_id = instagramActorId;
             }
 
-            const creative = await service.createAdCreative(adAccountId, {
+            const creativeParams: Record<string, any> = {
                 name: `${name.trim()} — Creative`,
                 object_story_spec: JSON.stringify(objectStorySpec),
-            });
+            };
+
+            // Required for multi-destination (messaging) ads
+            if (isMultiMessaging) {
+                creativeParams.degrees_of_freedom = JSON.stringify({
+                    creative_features_spec: {
+                        standard_enhancements: { enroll_status: 'OPT_OUT' },
+                    },
+                });
+            }
+
+            const creative = await service.createAdCreative(adAccountId, creativeParams);
 
             if (!creative?.id) {
                 return res.status(500).json({
