@@ -326,8 +326,10 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
                 object_story_spec: JSON.stringify(objectStorySpec),
             };
 
-            // Required for multi-destination (messaging) ads
-            if (isMultiMessaging) {
+            // Required for any messaging destination (WhatsApp, Instagram, Messenger, or combined)
+            const isMessagingType = ['WHATSAPP', 'INSTAGRAM_DIRECT', 'MESSENGER'].includes(resolvedDest)
+                || isMultiMessaging;
+            if (isMessagingType) {
                 creativeParams.degrees_of_freedom = JSON.stringify({
                     creative_features_spec: {
                         standard_enhancements: { enroll_status: 'OPT_IN' },
