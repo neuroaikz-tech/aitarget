@@ -330,11 +330,11 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             const isMessagingType = ['WHATSAPP', 'INSTAGRAM_DIRECT', 'MESSENGER'].includes(resolvedDest)
                 || isMultiMessaging;
             if (isMessagingType) {
-                creativeParams.degrees_of_freedom = JSON.stringify({
+                creativeParams.degrees_of_freedom_spec = {
                     creative_features_spec: {
                         standard_enhancements: { enroll_status: 'OPT_IN' },
                     },
-                });
+                };
             }
 
             const creative = await service.createAdCreative(adAccountId, creativeParams);
