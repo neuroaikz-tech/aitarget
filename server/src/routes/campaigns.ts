@@ -330,7 +330,7 @@ router.post('/accounts/:adAccountId/campaigns', authenticate, async (req: AuthRe
             if (isMultiMessaging) {
                 creativeParams.degrees_of_freedom = JSON.stringify({
                     creative_features_spec: {
-                        standard_enhancements: { enroll_status: 'OPT_OUT' },
+                        standard_enhancements: { enroll_status: 'OPT_IN' },
                     },
                 });
             }
