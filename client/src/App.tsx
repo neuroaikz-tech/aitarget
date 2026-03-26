@@ -11,6 +11,7 @@ import DashboardPage from './pages/DashboardPage';
 import CampaignsPage from './pages/CampaignsPage';
 import SettingsPage from './pages/SettingsPage';
 import AIAnalystPage from './pages/AIAnalystPage';
+import CRMPage from './pages/CRMPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 import DataDeletionPage from './pages/DataDeletionPage';
@@ -85,6 +86,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/crm" element={<CRMPage />} />
             <Route path="/ai" element={<AIAnalystPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

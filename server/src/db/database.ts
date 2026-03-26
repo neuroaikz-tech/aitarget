@@ -98,6 +98,33 @@ function initializeSchema() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      -- FB источник
+      fb_lead_id TEXT,
+      fb_form_id TEXT,
+      fb_campaign_id TEXT,
+      fb_campaign_name TEXT,
+      fb_adset_id TEXT,
+      fb_ad_id TEXT,
+      -- Данные лида
+      name TEXT,
+      phone TEXT,
+      email TEXT,
+      notes TEXT,
+      -- Статус CRM
+      status TEXT DEFAULT 'new',
+      -- new | contacted | qualified | bought | rejected
+      deal_value REAL,
+      -- Для CAPI — event_id для дедупликации
+      capi_event_id TEXT,
+      capi_sent_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   // Миграции для существующих БД

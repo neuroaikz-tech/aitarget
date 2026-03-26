@@ -7,12 +7,14 @@ import {
     LogOut,
     ChevronRight,
     Brain,
+    Users,
 } from 'lucide-react';
 
 const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Дашборд' },
     { to: '/campaigns', icon: Megaphone, label: 'Кампании' },
-    { to: '/ai', icon: Brain, label: 'ИИ Аналитик', badge: 'NEW' },
+    { to: '/crm', icon: Users, label: 'CRM — Лиды' },
+    { to: '/ai', icon: Brain, label: 'ИИ Аналитик' },
     { to: '/settings', icon: Settings, label: 'Настройки' },
 ];
 

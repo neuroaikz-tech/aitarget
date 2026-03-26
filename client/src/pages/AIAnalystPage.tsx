@@ -291,9 +291,17 @@ export default function AIAnalystPage() {
                                                                     {priorityLabels[rec.priority]}
                                                                 </span>
                                                             </div>
-                                                            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5', margin: '0 0 12px' }}>
-                                                                {rec.description}
-                                                            </p>
+                                                            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', margin: '0 0 12px' }}>
+                                                                {rec.description.includes('\n')
+                                                                    ? rec.description.split('\n').map((line: string, i: number) => (
+                                                                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                                                                            <span style={{ color: 'var(--accent-light)', flexShrink: 0 }}>•</span>
+                                                                            <span>{line}</span>
+                                                                        </div>
+                                                                    ))
+                                                                    : rec.description
+                                                                }
+                                                            </div>
 
                                                             {hasAction && !isApplied && !isIgnored && (
                                                                 <div style={{ display: 'flex', gap: '8px' }}>

@@ -8,6 +8,7 @@ import { setupFacebookStrategy } from './config/passport';
 import authRoutes from './routes/auth';
 import campaignRoutes from './routes/campaigns';
 import aiRoutes from './routes/ai';
+import crmRoutes from './routes/crm';
 import { getDb } from './db/database';
 import { startScheduler } from './services/scheduler';
 import { startBot } from './services/telegramBot';
@@ -67,6 +68,7 @@ app.use(passport.session());
 app.use('/auth', authRoutes);
 app.use('/api/ads', campaignRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/crm', crmRoutes);
 
 // Запускаем планировщик ИИ-анализа и Telegram-бота
 if (process.env.NODE_ENV !== 'test') {
